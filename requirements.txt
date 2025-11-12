@@ -1,0 +1,12 @@
+streamlit
+PyPDF2
+pdfplumber
+python-docx
+pyttsx3
+gTTS
+openai
+google-generativeai
+pydub
+python-dotenv
+torch
+transformers
