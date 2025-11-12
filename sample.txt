@@ -1,0 +1,4 @@
+Name: Koushik Thummu
+Role: Developer, AI Enthusiast
+Project: AudioBook Generator
+Purpose: Practicing Git branching and collaboration
