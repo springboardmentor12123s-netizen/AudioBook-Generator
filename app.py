@@ -97,10 +97,9 @@ def text_to_speech(text, output_path="output_audio.mp3"):
 
     text = re.sub(r'\b\d+\b', convert_numbers, text)
 
-    # Load ElevenLabs API key
     eleven_key = os.getenv("ELEVEN_API_KEY")
     if not eleven_key:
-        raise ValueError("❌ ELEVEN_API_KEY not found in .env")
+        raise ValueError("ELEVEN_API_KEY not found in .env")
 
     # Initialize ElevenLabs client
     client = ElevenLabs(api_key=eleven_key)
