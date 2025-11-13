@@ -1,0 +1,15 @@
+streamlit
+PyPDF2
+python-docx
+
+# LLM (optional; needed if you use OpenAI)
+openai
+
+# TTS options (choose at least one)
+gTTS
+pyttsx3
+
+# Transformers (optional; heavy)
+transformers
+torch
+
