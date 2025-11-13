@@ -1,132 +1,223 @@
-import streamlit as st
-from gtts import gTTS
-import pyttsx3
-from pydub import AudioSegment
-import pdfplumber
-from docx import Document
-from io import BytesIO
-import tempfile
-import os
-import traceback
+# app.py
+"""
+AudioBook Generator - Streamlit app
+Features:
+- Fast extraction (PDF via PyMuPDF, DOCX, TXT)
+- LLM rewrite options: Gemini (cloud) or Local quick rewrite (fallback)
+- Quota-safe Gemini usage with retries and retry_delay honoring
+- TTS: gTTS (online) with pyttsx3+pydub offline fallback
+- Plays audio in UI and offers download
+- Uses .env for GEMINI_API_KEY and optional FFMPEG_PATH
+"""
 
+import os
+import time
+from io import BytesIO
+from typing import Optional
+
+import streamlit as st
+from dotenv import load_dotenv
+
+# load environment variables from .env if present
+load_dotenv()
+
+# fast PDF extraction
+import fitz  # PyMuPDF
+
+# docx
+from docx import Document
+
+# modules (assumed to exist in modules/ folder)
+from modules.llm_enrichment import (
+    enrich_text_with_gemini_quota_safe,
+    simple_local_enrich,
+)
+from modules.tts_engine import generate_audio  # returns path to mp3 or None
+
+# Config
 st.set_page_config(page_title="AudioBook Generator", page_icon="🎧", layout="wide")
 st.title("🎧 AudioBook Generator")
-st.write("Upload a document (PDF, DOCX, or TXT) and convert it into an audiobook!")
+st.markdown(
+    "Upload PDF / DOCX / TXT → choose rewrite mode (optional) → Generate & play audiobook MP3."
+)
 
-def extract_text(uploaded_file):
-    text = ""
-    fname = uploaded_file.name.lower()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip() or None
+FFMPEG_PATH = os.getenv("FFMPEG_PATH", "").strip() or None
+
+if FFMPEG_PATH:
+    # modules.tts_engine already handles pydub config, but this ensures pydub sees it early
     try:
-        if fname.endswith(".pdf"):
-            file_bytes = uploaded_file.read()
-            with pdfplumber.open(BytesIO(file_bytes)) as pdf:
-                for page in pdf.pages:
-                    p = page.extract_text()
-                    if p:
-                        text += p + "\n"
-            uploaded_file.seek(0)
-        elif fname.endswith(".docx"):
-            file_bytes = uploaded_file.read()
-            doc = Document(BytesIO(file_bytes))
-            for para in doc.paragraphs:
-                text += para.text + "\n"
-            uploaded_file.seek(0)
-        elif fname.endswith(".txt"):
-            text = uploaded_file.read().decode("utf-8", errors="ignore")
-            uploaded_file.seek(0)
+        from pydub import AudioSegment
+        AudioSegment.converter = FFMPEG_PATH
+    except Exception:
+        pass
+
+
+# -------------------------
+# Utility: fast extraction
+# -------------------------
+def extract_text_from_file(uploaded_file, preview_only: bool = False) -> str:
+    """
+    Extract text from PDF (fast via PyMuPDF), DOCX, or TXT.
+    If preview_only=True, only extract first 1-2 pages for PDF to be quick.
+    """
+    name = uploaded_file.name.lower()
+    data = uploaded_file.read()
+    uploaded_file.seek(0)
+
+    try:
+        if name.endswith(".pdf"):
+            doc = fitz.open(stream=data, filetype="pdf")
+            num_pages = doc.page_count
+            pages_to_read = min(num_pages, 2) if preview_only else num_pages
+            texts = []
+            for i in range(pages_to_read):
+                page = doc.load_page(i)
+                texts.append(page.get_text("text") or "")
+            doc.close()
+            return "\n\n".join(texts).strip()
+
+        if name.endswith(".docx"):
+            docx = Document(BytesIO(data))
+            paras = [p.text for p in docx.paragraphs if p.text]
+            return "\n\n".join(paras).strip()
+
+        if name.endswith(".txt"):
+            return data.decode("utf-8", errors="ignore").strip()
+
     except Exception as e:
         st.error(f"Extraction error: {e}")
-    return text.strip()
+        return ""
 
-# ----------------------
-# Offline TTS using pyttsx3 + pydub (WAV -> MP3)
-# ----------------------
-def tts_offline_to_mp3(text):
-    try:
-        engine = pyttsx3.init()
-        engine.setProperty("rate", 150)
-        temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
-        temp_mp3 = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
+    st.error("Unsupported file type.")
+    return ""
 
-        engine.save_to_file(text, temp_wav)
-        engine.runAndWait()
 
-        # convert wav -> mp3 (pydub requires ffmpeg)
-        sound = AudioSegment.from_wav(temp_wav)
-        sound.export(temp_mp3, format="mp3")
-
-        # cleanup wav
-        try:
-            os.remove(temp_wav)
-        except:
-            pass
-        return temp_mp3
-    except Exception as e:
-        st.error("Offline TTS error: " + str(e))
-        st.error(traceback.format_exc())
-        return None
-
-# ----------------------
-# Online TTS using gTTS
-# ----------------------
-def tts_gtts_to_mp3(text):
-    try:
-        tts = gTTS(text=text, lang="en", slow=False)
-        temp_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
-        tts.save(temp_path)
-        return temp_path
-    except Exception as e:
-        # show a small message (don’t fail silently)
-        st.warning("gTTS failed — falling back to offline TTS. Reason: " + str(e))
-        return None
-
-# ----------------------
-# Combined wrapper: try online, else offline
-# ----------------------
-def generate_audio_mp3(text):
-    # First try gTTS (online)
-    path = tts_gtts_to_mp3(text)
-    if path and os.path.exists(path):
-        return path
-
-    # If gTTS failed, use offline method
-    path = tts_offline_to_mp3(text)
-    return path
-
-# ----------------------
+# -------------------------
 # Main UI
-# ----------------------
-uploaded_file = st.file_uploader("Upload your document", type=["pdf", "docx", "txt"])
+# -------------------------
+uploaded = st.file_uploader("Upload a file (PDF, DOCX, TXT)", type=["pdf", "docx", "txt"])
+if not uploaded:
+    st.info("Upload a file to begin. For quick tests, upload a small .txt file.")
+    st.stop()
 
-if uploaded_file:
-    with st.spinner("Extracting text..."):
-        text = extract_text(uploaded_file)
+# Extract preview first (fast)
+with st.spinner("Extracting preview..."):
+    preview_text = extract_text_from_file(uploaded, preview_only=True)
 
-    if not text:
-        st.error("❌ Could not extract text from the file. Try a different file or use a text file for testing.")
+if not preview_text:
+    st.error("Could not extract text from the uploaded file. Try a different file.")
+    st.stop()
+
+st.success("Preview extracted.")
+if st.checkbox("Show extracted preview"):
+    st.text_area("Preview (first pages)", preview_text, height=250)
+
+# Option: extract full text on demand (button)
+full_text = None
+if st.button("Extract full text"):
+    with st.spinner("Extracting full text (may take a while for large PDFs)..."):
+        full_text = extract_text_from_file(uploaded, preview_only=False)
+    if not full_text:
+        st.error("Full extraction failed or produced no text.")
+        st.stop()
+    st.success("Full text extracted.")
+    if st.checkbox("Show full extracted text"):
+        st.text_area("Full extracted text", full_text[:20000], height=400)
+
+# If full_text not yet extracted, use preview_text as the working text for quick operations
+working_text = full_text if full_text else preview_text
+
+# -------------------------
+# Rewrite mode selection
+# -------------------------
+st.markdown("### Rewrite options (optional)")
+mode = st.radio(
+    "Choose rewrite mode",
+    options=["No rewrite", "Local quick rewrite (fast, offline)", "Gemini (cloud, may use quota)"],
+    index=1,
+)
+
+rewritten_text = working_text  # default
+
+if mode == "Local quick rewrite (fast, offline)":
+    if st.button("Apply local quick rewrite"):
+        with st.spinner("Applying local quick rewrite..."):
+            rewritten_text = simple_local_enrich(working_text)
+        st.success("Local rewrite complete.")
+        st.text_area("Rewritten (local) preview", rewritten_text[:20000], height=300)
+
+elif mode == "Gemini (cloud, may use quota)":
+    st.info("Gemini calls consume API quota. Use 'Quick preview' to conserve quota.")
+    # quick preview toggle
+    preview_only = st.checkbox("Quick preview (rewrite first 3000 chars)", value=True)
+    model_choice = st.selectbox(
+        "Gemini model",
+        options=[
+            "models/gemini-2.5-flash",
+            "models/gemini-2.5-pro",
+            "models/gemini-flash-latest",
+        ],
+        index=0,
+    )
+    max_req_min = st.slider("Max Gemini requests per minute (throttle)", 1, 60, 10)
+    if st.button("Rewrite with Gemini"):
+        text_for_rewrite = working_text[:3000] if preview_only else working_text
+        with st.spinner("Rewriting with Gemini (quota-safe)..."):
+            rewritten_text = enrich_text_with_gemini_quota_safe(
+                text_for_rewrite,
+                model=model_choice,
+                max_retries_per_chunk=3,
+                throttle_seconds_between_calls=1.2,
+                max_requests_per_minute=max_req_min,
+                use_local_on_failure=True,
+            )
+        st.success("Gemini rewrite finished (or local fallback used).")
+        st.text_area("Rewritten (Gemini) preview", rewritten_text[:20000], height=300)
+
+else:
+    # No rewrite selected
+    rewritten_text = working_text
+
+# -------------------------
+# Allow user to edit before TTS
+# -------------------------
+st.markdown("### Edit text before generating audio (optional)")
+edited_text = st.text_area("Text to convert to audio", rewritten_text[:200000], height=300)
+
+# -------------------------
+# Generate audio
+# -------------------------
+st.markdown("### Generate audio")
+if st.button("🎧 Generate Audio"):
+    if not edited_text.strip():
+        st.error("No text to convert.")
     else:
-        st.success("✅ Text extracted successfully!")
-        st.text_area("Extracted Text (Preview):", text[:2000], height=250)
+        with st.spinner("Generating audio..."):
+            audio_path, mime = generate_audio(edited_text)
 
-        if st.button("🎧 Generate Audio"):
-            with st.spinner("Converting text to audio..."):
-                audio_path = generate_audio_mp3(text)
+        if audio_path:
+            st.success("Audio generated & saved!")
 
-            if audio_path and os.path.exists(audio_path):
-                st.success("✅ Audio generated successfully!")
-                # Show path for debugging (optional)
-                st.info(f"Audio file: {audio_path}")
+            with open(audio_path, "rb") as f:
+                audio_bytes = f.read()
 
-                with open(audio_path, "rb") as f:
-                    audio_bytes = f.read()
+            st.audio(audio_bytes, format=mime)
 
-                st.audio(audio_bytes, format="audio/mp3")
-                st.download_button("⬇️ Download Audio File", data=audio_bytes, file_name="audiobook.mp3", mime="audio/mp3")
+            st.download_button(
+                "⬇ Download MP3",
+                data=audio_bytes,
+                file_name=os.path.basename(audio_path),
+                mime=mime
+            )
 
-                # Optionally delete the temp file after use (commented out during debugging)
-                try:
-                    os.remove(audio_path)
-                except:
-                    pass
-            else:
-                st.error("Audio generation failed. Check the logs above.")
+            st.info(f"Saved file: `{audio_path}`")
+
+        else:
+            st.error("Audio generation failed.")
+
+
+
+# Footer
+st.markdown("---")
+st.caption("Notes: Gemini requires GEMINI_API_KEY set in environment (.env). Local rewrite is fast and does not use quota.")

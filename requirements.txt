@@ -1,12 +1,9 @@
 streamlit
-PyPDF2
 pdfplumber
 python-docx
-pyttsx3
 gTTS
-openai
-google-generativeai
+pyttsx3
 pydub
+openai
 python-dotenv
-torch
-transformers
+google-generativeai
