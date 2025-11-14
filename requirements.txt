@@ -1,0 +1,9 @@
+streamlit==1.28.0
+python-docx==0.8.11
+pdfplumber==0.10.3
+pyttsx3==2.90
+transformers==4.35.0
+google-generativeai==0.3.0
+soundfile==0.12.1
+pydub==0.25.1
+python-dotenv==1.0.0
