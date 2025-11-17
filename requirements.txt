@@ -1,0 +1,17 @@
+# Core Dependencies
+streamlit>=1.28.0
+
+# Text Extraction
+pdfplumber>=0.9.0
+python-docx>=0.8.11
+
+# LLM Integration
+openai>=1.0.0
+google-generativeai>=0.3.0
+
+# Text-to-Speech
+gTTS>=2.3.0
+pyttsx3>=2.90
+
+# Optional: For better PDF handling (alternative)
+PyPDF2>=3.0.0
