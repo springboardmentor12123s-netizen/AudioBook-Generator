@@ -1,14 +1,9 @@
 import streamlit as st
 import os
-import io
-import nltk
-# import pyttsx3
 from elevenlabs import ElevenLabs
 
 import google.generativeai as genai
 from dotenv import load_dotenv
-from nltk.stem import PorterStemmer, WordNetLemmatizer
-from nltk.tokenize import word_tokenize
 from PyPDF2 import PdfReader
 from docx import Document
 
@@ -34,22 +29,11 @@ load_dotenv(dotenv_path=".env")
 api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("Google API key not found. Please add it to a .env file as GOOGLE_API_KEY=your_key_here.")
+    st.error("GEMINI API key not found. Please add it to a .env file as GEMINI_API_KEY=your_key_here.")
     st.stop()
 
 genai.configure(api_key=api_key)
-
-# print("\nAvailable Gemini Models:")
-# for model in genai.list_models():
-#     print("-", model.name)
-
-
-nltk.download('punkt', quiet=True)
-nltk.download('wordnet', quiet=True)
-nltk.download('omw-1.4', quiet=True)
-
-stemmer = PorterStemmer()
-lemmatizer = WordNetLemmatizer()
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 def extract_text(file):
     """Extract text from uploaded file (txt, pdf, docx)."""
@@ -65,18 +49,9 @@ def extract_text(file):
         st.error("Unsupported file type.")
         return ""
 
-# def preprocess_text(text):
-#     """Tokenize, stem, and lemmatize the text."""
-#     tokens = word_tokenize(text)
-#     stemmed = [stemmer.stem(word) for word in tokens]
-#     lemmatized = [lemmatizer.lemmatize(word) for word in stemmed]
-#     return " ".join(lemmatized)
-
-
 def grammar_correction(text):
     """Use Gemini to correct grammar and clarity."""
     st.info("⏳ Sending text to Gemini for correction...")
-    model = genai.GenerativeModel("gemini-2.5-flash")
     
     # Limit length to avoid API timeout
     if len(text) > 30000:
@@ -135,11 +110,10 @@ def text_to_speech(text, output_path="output_audio.mp3"):
 
 def translate_text(text, target_language_code):
     """Translate text to any target language using Gemini."""
-    model = genai.GenerativeModel("gemini-2.5-flash")
 
     prompt = f"""
     Translate the following text into the language represented by code '{target_language_code}'.
-    Return ONLY the translated text, with no explanations or formatting.
+    Return ONLY the translated text. No quotes, no explanations, no formatting, no labels.
 
     Text:
     {text}
@@ -161,6 +135,10 @@ if uploaded_file:
     with st.spinner("Extracting text..."):
         raw_text = extract_text(uploaded_file)
 
+    if not raw_text.strip():
+        st.error("The uploaded file appears to be empty or could not be extracted.")
+        st.stop()
+
     st.subheader("Original Extracted Text")
     st.text_area("Raw text:", raw_text[:1000] + "..." if len(raw_text) > 1000 else raw_text, height=200)
 
@@ -170,22 +148,26 @@ if uploaded_file:
         list(SUPPORTED_LANGUAGES.keys())
     )
 
+    st.info("This may take 10–30 seconds for large documents...")
+    
     if st.button("Process and Generate Audio"):
         with st.spinner("Preprocessing and correcting text..."):
-            # preprocessed = preprocess_text(raw_text)
             corrected_text = grammar_correction(raw_text)
 
         st.subheader("Corrected Text")
         st.text_area("Clean version:", corrected_text, height=250)
 
-        # --- Step 1: Generate initial TTS (original language) ---
+        # Step 1: Generate initial TTS (original language)
         with st.spinner("Generating audio (original language)..."):
             audio_path_original = text_to_speech(corrected_text)
 
         st.success("Original language audio generated!")
         st.audio(audio_path_original)
 
-        # --- Step 2: Translate into selected language ---
+        with open(audio_path_original, "rb") as f:
+            st.download_button("Download Original Audio", f, file_name="audio_original.mp3")
+
+        # Step 2: Translate into selected language
         target_code = SUPPORTED_LANGUAGES[selected_language]
 
         with st.spinner(f"Translating into {selected_language}..."):
@@ -194,7 +176,7 @@ if uploaded_file:
         st.subheader(f"Translated Text ({selected_language})")
         st.text_area("Translated version:", translated_text, height=250)
 
-        # --- Step 3: Generate TTS for translated text ---
+        # Step 3: Generate TTS for translated text
         with st.spinner(f"Generating audio in {selected_language}..."):
             translated_audio_path = text_to_speech(
                 translated_text,
@@ -203,4 +185,8 @@ if uploaded_file:
 
         st.success(f"Audio generated in {selected_language}!")
         st.audio(translated_audio_path)
+
+        with open(translated_audio_path, "rb") as f:
+            st.download_button("Download Translated Audio", f, file_name="audio_translated.mp3")
+
 
