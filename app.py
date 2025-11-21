@@ -15,6 +15,21 @@ from docx import Document
 from num2words import num2words
 import re
 
+SUPPORTED_LANGUAGES = {
+    "English": "en",
+    "Hindi": "hi",
+    "Spanish": "es",
+    "French": "fr",
+    "German": "de",
+    "Italian": "it",
+    "Portuguese": "pt",
+    "Russian": "ru",
+    "Arabic": "ar",
+    "Chinese (Simplified)": "zh",
+    "Japanese": "ja",
+    "Korean": "ko"
+}
+
 load_dotenv(dotenv_path=".env")  
 api_key = os.getenv("GEMINI_API_KEY")
 
@@ -50,12 +65,12 @@ def extract_text(file):
         st.error("Unsupported file type.")
         return ""
 
-def preprocess_text(text):
-    """Tokenize, stem, and lemmatize the text."""
-    tokens = word_tokenize(text)
-    stemmed = [stemmer.stem(word) for word in tokens]
-    lemmatized = [lemmatizer.lemmatize(word) for word in stemmed]
-    return " ".join(lemmatized)
+# def preprocess_text(text):
+#     """Tokenize, stem, and lemmatize the text."""
+#     tokens = word_tokenize(text)
+#     stemmed = [stemmer.stem(word) for word in tokens]
+#     lemmatized = [lemmatizer.lemmatize(word) for word in stemmed]
+#     return " ".join(lemmatized)
 
 
 def grammar_correction(text):
@@ -118,6 +133,26 @@ def text_to_speech(text, output_path="output_audio.mp3"):
 
     return output_path
 
+def translate_text(text, target_language_code):
+    """Translate text to any target language using Gemini."""
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
+    prompt = f"""
+    Translate the following text into the language represented by code '{target_language_code}'.
+    Return ONLY the translated text, with no explanations or formatting.
+
+    Text:
+    {text}
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        st.error(f"Translation Error: {e}")
+        return text
+
+
 st.title("🎧 Grammar-Correcting AudioBook Generator (Prototype)")
 
 uploaded_file = st.file_uploader("Upload a text, PDF, or Word document", type=["txt", "pdf", "docx"])
@@ -129,16 +164,43 @@ if uploaded_file:
     st.subheader("Original Extracted Text")
     st.text_area("Raw text:", raw_text[:1000] + "..." if len(raw_text) > 1000 else raw_text, height=200)
 
+    st.subheader("🌍 Output Language Selection")
+    selected_language = st.selectbox(
+        "Choose the output language for final audio:",
+        list(SUPPORTED_LANGUAGES.keys())
+    )
+
     if st.button("Process and Generate Audio"):
         with st.spinner("Preprocessing and correcting text..."):
-            preprocessed = preprocess_text(raw_text)
-            corrected_text = grammar_correction(preprocessed)
+            # preprocessed = preprocess_text(raw_text)
+            corrected_text = grammar_correction(raw_text)
 
         st.subheader("Corrected Text")
         st.text_area("Clean version:", corrected_text, height=250)
 
-        with st.spinner("Generating audio..."):
-            audio_path = text_to_speech(corrected_text)
+        # --- Step 1: Generate initial TTS (original language) ---
+        with st.spinner("Generating audio (original language)..."):
+            audio_path_original = text_to_speech(corrected_text)
 
-        st.success("Audio generated successfully!")
-        st.audio(audio_path)
+        st.success("Original language audio generated!")
+        st.audio(audio_path_original)
+
+        # --- Step 2: Translate into selected language ---
+        target_code = SUPPORTED_LANGUAGES[selected_language]
+
+        with st.spinner(f"Translating into {selected_language}..."):
+            translated_text = translate_text(corrected_text, target_code)
+
+        st.subheader(f"Translated Text ({selected_language})")
+        st.text_area("Translated version:", translated_text, height=250)
+
+        # --- Step 3: Generate TTS for translated text ---
+        with st.spinner(f"Generating audio in {selected_language}..."):
+            translated_audio_path = text_to_speech(
+                translated_text,
+                output_path=f"audio_{target_code}.mp3"
+            )
+
+        st.success(f"Audio generated in {selected_language}!")
+        st.audio(translated_audio_path)
+
