@@ -1,17 +1,14 @@
-import requests
+import google.generativeai as genai
+genai.configure(api_key="AIzaSyCd0ggKGan_yFXhJXwl_K1gLAvHnuzgMjI")
 
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 def enrich_text(text):
-    prompt = f"Rewrite the following text in an engaging, listener-friendly audiobook narration style:\n\n{text}"
-
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "mistral",   # the model you downloaded
-            "prompt": prompt,
-            "stream": False
-        }
+    prompt = (
+        "Rewrite the following text in an engaging, listener-friendly audiobook narration style.\n\n"
+        f"{text}"
     )
 
-    data = response.json()
-    return data["response"]
+    response = model.generate_content(prompt)
+
+    return response.text
