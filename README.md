@@ -1,33 +1,83 @@
-# AI Audiobook Generator — Week 1 Starter
+# Audiobook & Song Lyrics Generator
 
-This starter project implements the Week 1 features:
-- Upload PDF / DOCX / TXT
-- Extract & show text preview
+A modern Streamlit web app that converts text or PDF files into audiobooks and extracts clean lyrics from any song.  
+The project includes multilingual UI support (English + Hindi), audio processing, PDF text extraction, and a beautiful animated frontend.
 
 ---
 
-### 🧩 Quickstart
+## Features
 
-1. **Create and activate a virtual environment**
+1. Text to Audiobook
+   - Upload a PDF or paste text
+   - Extract text automatically
+   - Convert text into MP3 audiobook using OpenAI TTS
+   - Download the generated audio file
 
-   **Windows**
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
+2. Song to Lyrics
+   - Upload any song (MP3/WAV)
+   - Extract lyrics using Google Speech-to-Text API
+   - Automatic cleanup of text, removing noise or timestamps
+   - Download lyrics as a text file
 
-   ##  — LLM Summarization & TTS
+3. Multilingual Support
+   - Switch between English and Hindi UI
+   - All labels and messages updated instantly
 
-### Options
-- **OpenAI**: Set `OPENAI_API_KEY` environment variable or paste your key in the sidebar. Requires `openai` package.
-- **Local Transformers**: Install `transformers` and `torch` to enable local summarizer.
+4. Beautiful UI
+   - Animated background
+   - Frosted glass card effects
+   - Modern fonts
+   - Smooth animations
 
-### TTS options
-- **gTTS** (online): produces MP3 files, requires internet.
-- **pyttsx3** (offline): produces WAV files.
+---
 
-### Install (recommended minimal)
-pip install -r requirements.txt
+## Tech Stack
 
-### Run
-streamlit run app.py
+Frontend:
+- Streamlit
+- Custom CSS
+
+Backend:
+- OpenAI Text-to-Speech API
+- Google Cloud Speech-to-Text API
+- PyPDF2 (PDF text extraction)
+- Pydub (audio processing)
+
+Project Structure:
+
+The app will open automatically in your browser.
+
+---
+
+## How It Works
+
+1. Audiobook Generation:
+   - If PDF uploaded → text is extracted using PyPDF2
+   - If text entered → taken directly from user input
+   - Sent to OpenAI TTS model
+   - MP3 file is generated and available for download
+
+2. Song Lyrics Extraction:
+   - User uploads an MP3/WAV file
+   - Processed with Pydub
+   - Google Speech-to-Text converts audio to words
+   - Script cleans lyrics (removes timestamps, noise, spacing)
+   - Clean lyrics displayed and downloadable
+
+3. Multilingual UI:
+   - All UI text comes from english.json or hindi.json
+   - When language selected → app loads corresponding file
+
+---
+
+## Requirements
+
+See requirements.txt:
+streamlit
+pydub
+openai
+PyPDF2
+google-cloud-speech
+google-cloud-storage
+google-cloud-language
 

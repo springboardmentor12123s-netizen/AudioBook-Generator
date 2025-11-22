@@ -1,141 +1,163 @@
-import os
-import tempfile
 import streamlit as st
-from io import BytesIO
+import os
+import json
+import pyttsx3
+import whisper
 
-from utils.file_utils import extract_text_from_file, ALLOWED_EXTENSIONS
-from utils.llm_utils import summarize_with_openai, summarize_with_transformers, llm_available_openai, llm_available_transformers
-from utils.tts_utils import tts_gtts_save, tts_pyttsx3_save
+# Ensure output folders exist
+os.makedirs("audio_uploads", exist_ok=True)
+os.makedirs("outputs", exist_ok=True)
 
-# ---------------- Page config ----------------
-st.set_page_config(page_title="AI Audiobook Generator ", layout="wide", page_icon="🎧")
+# -----------------------------------------------------------
+# Load Translations (English / Hindi)
+# -----------------------------------------------------------
+def load_language(lang):
+    with open(f"translations/{lang}.json", "r", encoding="utf-8") as f:
+        return json.load(f)
 
-# ---------------- Sidebar ----------------
-with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3208/3208751.png", width=80)
-    st.title("🎧 Audiobook Generator")
-    st.markdown(" — Summarize & Generate Voice")
-    st.divider()
+# -----------------------------------------------------------
+# Background Animation (CSS Gradient Animation)
+# -----------------------------------------------------------
+def set_gradient_background():
+    gradient_css = """
+    <style>
+    body {
+        background: linear-gradient(-45deg, #FFDEE9, #B5FFFC, #C7CEEA, #FF9CEE);
+        background-size: 400% 400%;
+        animation: gradient 10s ease infinite;
+    }
+    @keyframes gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    </style>
+    """
+    st.markdown(gradient_css, unsafe_allow_html=True)
 
-    # LLM choice
-    st.markdown("### 🔮 Summarization (LLM)")
-    llm_choice = st.selectbox("Choose summarization backend", ["OpenAI (API)", "Transformers (local)"])
-    openai_key = None
-    if llm_choice == "OpenAI (API)":
-        openai_key = st.text_input("OpenAI API Key (or set OPENAI_API_KEY env)", type="password")
-    summary_length = st.slider("Target summary length (approx words)", min_value=30, max_value=800, value=150, step=10)
+set_gradient_background()
 
-    st.divider()
-    st.markdown("### 🔊 Text-to-Speech (TTS)")
-    tts_choice = st.selectbox("TTS engine", ["gTTS (online, MP3)", "pyttsx3 (offline, WAV)"])
-    tts_lang = st.text_input("TTS language code (gTTS)", value="en")
-    st.divider()
+# -----------------------------------------------------------
+# Sidebar (Language + Navigation + Voice)
+# -----------------------------------------------------------
+st.sidebar.title("🌐 Language")
+language = st.sidebar.selectbox("Choose Language", ["english", "hindi"])
+T = load_language(language)
 
-    st.markdown("### ⚙️ Advanced")
-    preview_len = st.slider("Preview chars before summary", 200, 5000, 1500, step=100)
-    st.caption("Transformers will attempt to load a summarization model (heavy).")
+st.sidebar.title("🧭 Navigation")
+page = st.sidebar.radio("Go to:", [T["nav_text_to_audio"], T["nav_song_to_lyrics"]])
 
-st.write("# AI Audiobook Generator — Week 2")
-st.write("Upload a file, extract text, summarize it with an LLM, and generate audio.")
+st.sidebar.title("🎙 Voice")
+voice_choice = st.sidebar.selectbox("Voice Type", ["Default", "Female", "Male"])
 
-# ---------------- Upload ----------------
-uploaded_file = st.file_uploader("Upload PDF / DOCX / TXT", type=list(ALLOWED_EXTENSIONS))
-if not uploaded_file:
-    st.info("Upload a file to begin. Try files in sample_files/ or drag & drop here.")
-    st.stop()
+# -----------------------------------------------------------
+# Main Page Layout
+# -----------------------------------------------------------
+st.markdown(
+    f"<h1 style='text-align: center; color: #222;'>{T['app_title']}</h1>",
+    unsafe_allow_html=True
+)
 
-# ---------------- Extract ----------------
-file_bytes = uploaded_file.read()
-with st.spinner("Extracting text..."):
-    try:
-        text, meta = extract_text_from_file(uploaded_file.name, file_bytes)
-    except Exception as e:
-        st.error(f"Failed to extract text: {e}")
-        st.stop()
+# -----------------------------------------------------------
+# Utility Functions (Free, Offline)
+# -----------------------------------------------------------
+def generate_speech(text, voice="Default"):
+    """
+    Generates speech from text using pyttsx3 and returns the output path
+    """
+    engine = pyttsx3.init()
+    
+    # Set voice
+    voices = engine.getProperty('voices')
+    if voice.lower() == "female" and len(voices) > 1:
+        engine.setProperty('voice', voices[1].id)
+    elif voice.lower() == "male":
+        engine.setProperty('voice', voices[0].id)
 
-st.success("Text extracted ✅")
-col1, col2 = st.columns([2, 1])
+    output_path = os.path.join("outputs", "audiobook.mp3")
+    engine.save_to_file(text, output_path)
+    engine.runAndWait()
+    return output_path
 
-with col1:
-    st.subheader("Extracted Text (preview)")
-    st.text_area("extracted", value=(text[:preview_len] + ("\n\n... [truncated]" if len(text) > preview_len else "")), height=300)
+def extract_lyrics_from_audio(audio_path):
+    """
+    Extracts lyrics / text from audio using OpenAI Whisper
+    """
+    model = whisper.load_model("base")  # Works offline
+    result = model.transcribe(audio_path)
+    return result["text"]
 
-with col2:
-    with st.expander("File metadata"):
-        st.json(meta)
-    st.download_button("Download full extracted text", data=BytesIO(text.encode("utf-8")).getvalue(),
-                       file_name=f"{uploaded_file.name.rsplit('.',1)[0]}_extracted.txt",
-                       mime="text/plain")
+# -----------------------------------------------------------
+# PAGE 1 — TEXT / PDF → AUDIOBOOK
+# -----------------------------------------------------------
+if page == T["nav_text_to_audio"]:
+    st.subheader(T["subtitle_text_to_audio"])
 
-st.write("---")
+    option = st.radio(T["choose_input_type"], [T["upload_pdf"], T["enter_text"]])
 
-# ---------------- Summarize ----------------
-st.subheader("Summarize")
-do_summary = st.button("📝 Generate Summary")
+    extracted_text = ""
 
-summary_text = None
-if do_summary:
-    # Prefer env var if not entered
-    if llm_choice == "OpenAI (API)":
-        key = openai_key or os.environ.get("OPENAI_API_KEY")
-        if not key:
-            st.error("OpenAI API key required for this option. Set OPENAI_API_KEY envvar or paste it in the sidebar.")
-        else:
-            with st.spinner("Summarizing with OpenAI..."):
-                try:
-                    summary_text = summarize_with_openai(text, key, max_words=summary_length)
-                except Exception as e:
-                    st.error(f"OpenAI summarization failed: {e}")
+    # -------- PDF Upload --------
+    if option == T["upload_pdf"]:
+        from utils.file_utils import extract_text_from_pdf
+        pdf_file = st.file_uploader(T["upload_pdf_prompt"], type=["pdf"])
+        if pdf_file:
+            pdf_path = os.path.join("audio_uploads", pdf_file.name)
+            with open(pdf_path, "wb") as f:
+                f.write(pdf_file.getbuffer())
+
+            extracted_text = extract_text_from_pdf(pdf_path)
+            extracted_text = extracted_text.strip()
+            st.text_area(T["extracted_text"], extracted_text, height=250)
+
+    # -------- Manual Text Entry --------
     else:
-        # transformers path
-        if not llm_available_transformers():
-            st.error("Transformers summarizer not available. Install `transformers` and `torch` to use local summarization.")
+        extracted_text = st.text_area(T["enter_text_prompt"], height=250)
+
+    # -------- Generate Audiobook --------
+    if st.button(T["generate_audio_btn"]):
+        if extracted_text.strip() == "":
+            st.error(T["error_no_text"])
         else:
-            with st.spinner("Summarizing with local transformer model... (may take time)"):
-                try:
-                    summary_text = summarize_with_transformers(text, max_words=summary_length)
-                except Exception as e:
-                    st.error(f"Local summarization failed: {e}")
+            st.info(T["audio_generating"])
+            output_path = generate_speech(extracted_text, voice_choice)
 
-if summary_text:
-    st.success("Summary generated ✅")
-    st.subheader("Summary")
-    st.write(summary_text)
-    st.download_button("Download summary (.txt)", data=BytesIO(summary_text.encode("utf-8")).getvalue(),
-                       file_name=f"{uploaded_file.name.rsplit('.',1)[0]}_summary.txt",
-                       mime="text/plain")
-else:
-    st.info("Generate a summary to see results here.")
+            with open(output_path, "rb") as audio_file:
+                audio_bytes = audio_file.read()
 
-st.write("---")
+            st.audio(audio_bytes, format="audio/mp3")
+            st.download_button(
+                label=T["download_audio"],
+                data=audio_bytes,
+                file_name="audiobook.mp3",
+                mime="audio/mp3"
+            )
 
-# ---------------- TTS ----------------
-st.subheader("Generate Audio (TTS)")
-st.markdown("Use the summary (recommended) or the full extracted text. Choose engine and click `Generate Audio`.")
+# -----------------------------------------------------------
+# PAGE 2 — SONG → LYRICS EXTRACTION
+# -----------------------------------------------------------
+elif page == T["nav_song_to_lyrics"]:
+    st.subheader(T["subtitle_song_to_lyrics"])
 
-tts_source = st.radio("Audio source", ["Summary (if present)", "Full extracted text"], index=0)
-generate_audio = st.button("🔊 Generate Audio")
+    song_file = st.file_uploader(T["upload_song_prompt"], type=["mp3", "wav", "m4a"])
 
-if generate_audio:
-    source_text = summary_text if tts_source.startswith("Summary") and summary_text else text
-    if not source_text or len(source_text.strip()) == 0:
-        st.error("No text to synthesize.")
-    else:
-        with st.spinner("Generating audio..."):
-            try:
-                if tts_choice == "gTTS (online, MP3)":
-                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-                    tts_gtts_save(source_text, tmp.name, lang=tts_lang)
-                    audio_bytes = open(tmp.name, "rb").read()
-                    st.audio(audio_bytes, format="audio/mp3")
-                    st.download_button("Download MP3", data=audio_bytes, file_name=f"{uploaded_file.name.rsplit('.',1)[0]}_audio.mp3", mime="audio/mpeg")
-                else:
-                    # pyttsx3 offline -> produce WAV
-                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-                    tts_pyttsx3_save(source_text, tmp.name)
-                    audio_bytes = open(tmp.name, "rb").read()
-                    st.audio(audio_bytes, format="audio/wav")
-                    st.download_button("Download WAV", data=audio_bytes, file_name=f"{uploaded_file.name.rsplit('.',1)[0]}_audio.wav", mime="audio/wav")
-                st.success("Audio generated ✅")
-            except Exception as e:
-                st.error(f"TTS failed: {e}")
+    if song_file:
+        song_path = os.path.join("audio_uploads", song_file.name)
+        with open(song_path, "wb") as f:
+            f.write(song_file.getbuffer())
+
+        st.success(T["audio_uploaded"])
+
+        if st.button(T["extract_lyrics_btn"]):
+            st.info(T["extracting_lyrics"])
+            lyrics = extract_lyrics_from_audio(song_path)
+            lyrics = lyrics.strip()
+
+            st.text_area(T["lyrics_output"], lyrics, height=300)
+            st.download_button(
+                label=T["download_lyrics"],
+                data=lyrics,
+                file_name="lyrics.txt",
+                mime="text/plain"
+            )
+

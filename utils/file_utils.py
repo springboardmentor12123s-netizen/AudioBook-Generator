@@ -1,64 +1,70 @@
-import io
-from typing import Tuple, Dict
-from PyPDF2 import PdfReader
-from docx import Document
+"""
+file_utils.py
+---------------------------------------------
+Handles:
+- Extracting text from PDF files
+- Saving uploaded files safely
+---------------------------------------------
+"""
 
-ALLOWED_EXTENSIONS = ["pdf", "docx", "txt"]
+import fitz  # PyMuPDF (fast and accurate PDF text extractor)
+import os
 
-def extract_text_from_file(filename: str, data: bytes) -> Tuple[str, Dict]:
+
+# ------------------------------------------------------
+# PDF → TEXT EXTRACTION
+# ------------------------------------------------------
+def extract_text_from_pdf(pdf_path):
     """
-    Detects file type from filename and extracts plain text.
-    Returns (text, metadata dict).
+    Extract text from every page of the PDF.
+
+    Parameters:
+        pdf_path (str): Path to PDF file.
+
+    Returns:
+        text (str): Extracted text from the PDF.
     """
-    ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
-    meta = {"filename": filename, "extension": ext}
 
-    if ext == "pdf":
-        text = _extract_text_from_pdf(data, meta)
-    elif ext == "docx":
-        text = _extract_text_from_docx(data, meta)
-    elif ext == "txt":
-        text = _extract_text_from_txt(data, meta)
-    else:
-        raise ValueError(f"Unsupported file type: {ext}. Supported: {ALLOWED_EXTENSIONS}")
+    text = ""
 
-    return text, meta
+    try:
+        # Open the PDF file
+        pdf = fitz.open(pdf_path)
 
+        # Loop through all pages
+        for page_num in range(len(pdf)):
+            page = pdf.load_page(page_num)
+            text += page.get_text() + "\n"
 
-def _extract_text_from_pdf(data: bytes, meta: dict) -> str:
-    buffer = io.BytesIO(data)
-    reader = PdfReader(buffer)
-    n_pages = len(reader.pages)
-    meta.update({"pages": n_pages})
-    texts = []
+        pdf.close()
 
-    for i, page in enumerate(reader.pages):
-        try:
-            page_text = page.extract_text() or ""
-        except Exception:
-            page_text = ""
-        texts.append(f"\n\n--- Page {i+1} / {n_pages} ---\n\n")
-        texts.append(page_text)
+    except Exception as e:
+        return f"Error reading PDF: {str(e)}"
 
-    return "".join(texts).strip()
+    # Return the raw text
+    return text.strip()
 
 
-def _extract_text_from_docx(data: bytes, meta: dict) -> str:
-    buffer = io.BytesIO(data)
-    doc = Document(buffer)
-    paragraphs = [p.text for p in doc.paragraphs if p.text and p.text.strip() != ""]
-    meta.update({"paragraphs": len(paragraphs)})
-    return "\n\n".join(paragraphs).strip()
+# ------------------------------------------------------
+# SAVE UPLOADED FILES SAFELY
+# ------------------------------------------------------
+def save_uploaded_file(uploaded_file, folder="audio_uploads"):
+    """
+    Saves an uploaded file to a specific folder.
 
+    Parameters:
+        uploaded_file: File uploaded from Streamlit file uploader.
+        folder (str): Folder where file should be saved.
 
-def _extract_text_from_txt(data: bytes, meta: dict) -> str:
-    # try utf-8 then fallback
-    for enc in ("utf-8", "latin-1", "utf-16"):
-        try:
-            txt = data.decode(enc)
-            meta.update({"encoding": enc})
-            return txt
-        except Exception:
-            continue
-    raise UnicodeDecodeError("Unable to decode text file with common encodings.")
-    """Simple TXT extraction."""
+    Returns:
+        file_path (str): Path where file is saved.
+    """
+
+    os.makedirs(folder, exist_ok=True)
+
+    file_path = os.path.join(folder, uploaded_file.name)
+
+    with open(file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+
+    return file_path
