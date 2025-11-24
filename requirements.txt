@@ -1,9 +1,13 @@
 streamlit
 pdfplumber
 python-docx
-gTTS
+gTTS                  
 pyttsx3
 pydub
 openai
 python-dotenv
 google-generativeai
+
+
+# Converts text to MP3 audio using Google Text-to-Speech (online).
+

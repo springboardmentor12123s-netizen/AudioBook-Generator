@@ -1,223 +1,338 @@
+
 # app.py
 """
-AudioBook Generator - Streamlit app
+AudioBook Generator - Final full app.py
 Features:
 - Fast extraction (PDF via PyMuPDF, DOCX, TXT)
-- LLM rewrite options: Gemini (cloud) or Local quick rewrite (fallback)
-- Quota-safe Gemini usage with retries and retry_delay honoring
-- TTS: gTTS (online) with pyttsx3+pydub offline fallback
-- Plays audio in UI and offers download
-- Uses .env for GEMINI_API_KEY and optional FFMPEG_PATH
+- LLM rewrite options (Gemini cloud or Local quick rewrite)
+- Quota-safe Gemini usage with retries & caching
+- Translation BEFORE TTS (so selecting Hindi -> text translated to Hindi)
+- Multi-language & voice selection (Edge-TTS via modules/tts_engine)
+- Saves audio files in generated_audio/
+- Attractive UI, About sidebar, paginated history table with play/download
 """
 
 import os
 import time
+import math
 from io import BytesIO
-from typing import Optional
+from pathlib import Path
+from datetime import datetime
 
 import streamlit as st
 from dotenv import load_dotenv
 
-# load environment variables from .env if present
+# load env
 load_dotenv()
 
 # fast PDF extraction
 import fitz  # PyMuPDF
-
-# docx
 from docx import Document
 
-# modules (assumed to exist in modules/ folder)
-from modules.llm_enrichment import (
-    enrich_text_with_gemini_quota_safe,
-    simple_local_enrich,
-)
-from modules.tts_engine import generate_audio  # returns path to mp3 or None
+# modules (must exist in modules/)
+from modules.llm_enrichment import enrich_text_with_gemini_quota_safe, simple_local_enrich
+from modules.tts_engine import generate_audio, LANG_VOICES
+from modules.translator import translate_text  # translate_text(text, dest_lang)
 
-# Config
+# Optional: for audio duration reading (mutagen preferred)
+try:
+    from mutagen.mp3 import MP3
+    MUTAGEN_AVAILABLE = True
+except Exception:
+    MUTAGEN_AVAILABLE = False
+
+# Paths
+ROOT = Path.cwd()
+AUDIO_DIR = ROOT / "generated_audio"
+AUDIO_DIR.mkdir(exist_ok=True, parents=True)
+
+# Sample input path from this session (developer note: treat as test sample)
+SAMPLE_FILE_PATH = "/mnt/data/63b135ed-48ed-425d-ad51-7b45732a12ec.png"
+
+# Streamlit page config
 st.set_page_config(page_title="AudioBook Generator", page_icon="🎧", layout="wide")
 st.title("🎧 AudioBook Generator")
+st.caption("Upload → (Optional) Rewrite/Translate → Select language & voice → Generate audio (saved to generated_audio/)")
+
+# Small CSS for nicer look
 st.markdown(
-    "Upload PDF / DOCX / TXT → choose rewrite mode (optional) → Generate & play audiobook MP3."
+    """
+    <style>
+      .card { background: #fff; padding: 14px; border-radius:10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+      .muted { color: #6c757d; font-size:13px; }
+      .mono { font-family: monospace; font-size:13px; }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip() or None
-FFMPEG_PATH = os.getenv("FFMPEG_PATH", "").strip() or None
-
-if FFMPEG_PATH:
-    # modules.tts_engine already handles pydub config, but this ensures pydub sees it early
-    try:
-        from pydub import AudioSegment
-        AudioSegment.converter = FFMPEG_PATH
-    except Exception:
-        pass
-
-
 # -------------------------
-# Utility: fast extraction
+# Helper: fast extraction
 # -------------------------
 def extract_text_from_file(uploaded_file, preview_only: bool = False) -> str:
-    """
-    Extract text from PDF (fast via PyMuPDF), DOCX, or TXT.
-    If preview_only=True, only extract first 1-2 pages for PDF to be quick.
-    """
+    """Extract text from PDF (PyMuPDF), DOCX or TXT. preview_only reads just first 1-2 pages."""
     name = uploaded_file.name.lower()
     data = uploaded_file.read()
     uploaded_file.seek(0)
-
     try:
         if name.endswith(".pdf"):
             doc = fitz.open(stream=data, filetype="pdf")
-            num_pages = doc.page_count
-            pages_to_read = min(num_pages, 2) if preview_only else num_pages
+            pages_to_read = min(2, doc.page_count) if preview_only else doc.page_count
             texts = []
             for i in range(pages_to_read):
                 page = doc.load_page(i)
                 texts.append(page.get_text("text") or "")
             doc.close()
             return "\n\n".join(texts).strip()
-
         if name.endswith(".docx"):
             docx = Document(BytesIO(data))
             paras = [p.text for p in docx.paragraphs if p.text]
             return "\n\n".join(paras).strip()
-
         if name.endswith(".txt"):
             return data.decode("utf-8", errors="ignore").strip()
-
     except Exception as e:
         st.error(f"Extraction error: {e}")
         return ""
-
     st.error("Unsupported file type.")
     return ""
 
+# -------------------------
+# Layout: Sidebar About + Stats
+# -------------------------
+
+
+with st.sidebar:
+    # 1. Use a more engaging header with an emoji
+    st.header("📚 AudioBook Generator")
+    
+    # 2. Use st.info or st.success for the main description for a better visual block
+    st.info("**Transform documents into multilingual audiobooks with ease.**")
+    
+    st.markdown("---") # Visual separator
+    
+    # 3. Enhanced Feature List with icons and bolding
+    st.subheader("✨ Key Features")
+    st.markdown("""
+        * **📤 Upload** PDF, DOCX, or TXT files.
+        * **✍️ Optional Rewriting** (using Gemini or a local model).
+        * **🌐 Seamless Translation** before Text-to-Speech (TTS).
+        * **🎙️ Multi-language Voices** powered by Edge-TTS.
+    """)
+    
+    st.markdown("---") # Visual separator
+    
+    # 4. Tips section using st.expander or st.warning/st.caption for emphasis
+    st.subheader("💡 Tips for Best Results")
+    
+    # Using an unordered list for better scanning
+    st.markdown("""
+        * Use **Local Rewrite** for quick, cost-free demos.
+        * **Gemini Rewrite** is powerful but consumes API quota; ensure your API key is configured.
+    """)
+
+    st.markdown("---") # Final separator
+    
+    # 5. Author/Credit section using a smaller font (st.caption) or a distinct separator
+    st.caption("Developed by Nainsi Verma")
+    # Optional: Add a link to a portfolio/GitHub if applicable
+    # st.markdown("[GitHub Profile](YOUR_LINK_HERE)")
+# -------------------------
+# Main UI: two columns
+# -------------------------
+col_main, col_ctrl = st.columns([3, 1])
 
 # -------------------------
-# Main UI
+# Main column: upload / rewrite / edit
 # -------------------------
-uploaded = st.file_uploader("Upload a file (PDF, DOCX, TXT)", type=["pdf", "docx", "txt"])
-if not uploaded:
-    st.info("Upload a file to begin. For quick tests, upload a small .txt file.")
-    st.stop()
-
-# Extract preview first (fast)
-with st.spinner("Extracting preview..."):
-    preview_text = extract_text_from_file(uploaded, preview_only=True)
-
-if not preview_text:
-    st.error("Could not extract text from the uploaded file. Try a different file.")
-    st.stop()
-
-st.success("Preview extracted.")
-if st.checkbox("Show extracted preview"):
-    st.text_area("Preview (first pages)", preview_text, height=250)
-
-# Option: extract full text on demand (button)
-full_text = None
-if st.button("Extract full text"):
-    with st.spinner("Extracting full text (may take a while for large PDFs)..."):
-        full_text = extract_text_from_file(uploaded, preview_only=False)
-    if not full_text:
-        st.error("Full extraction failed or produced no text.")
+with col_main:
+    st.markdown("## 1) Upload document")
+    uploaded = st.file_uploader("Upload PDF / DOCX / TXT", type=["pdf", "docx", "txt"])
+    if not uploaded:
+        st.info("Upload a file to begin (or use sample file in the sidebar for testing).")
         st.stop()
-    st.success("Full text extracted.")
-    if st.checkbox("Show full extracted text"):
-        st.text_area("Full extracted text", full_text[:20000], height=400)
 
-# If full_text not yet extracted, use preview_text as the working text for quick operations
-working_text = full_text if full_text else preview_text
+    # preview extraction
+    with st.spinner("Extracting preview..."):
+        preview_text = extract_text_from_file(uploaded, preview_only=True)
 
-# -------------------------
-# Rewrite mode selection
-# -------------------------
-st.markdown("### Rewrite options (optional)")
-mode = st.radio(
-    "Choose rewrite mode",
-    options=["No rewrite", "Local quick rewrite (fast, offline)", "Gemini (cloud, may use quota)"],
-    index=1,
-)
+    if not preview_text:
+        st.error("Could not extract preview text.")
+        st.stop()
 
-rewritten_text = working_text  # default
+    st.success("Preview extracted.")
+    if st.checkbox("Show extracted preview"):
+        st.text_area("Preview (first pages)", preview_text, height=220)
 
-if mode == "Local quick rewrite (fast, offline)":
-    if st.button("Apply local quick rewrite"):
-        with st.spinner("Applying local quick rewrite..."):
-            rewritten_text = simple_local_enrich(working_text)
-        st.success("Local rewrite complete.")
-        st.text_area("Rewritten (local) preview", rewritten_text[:20000], height=300)
+    # full extraction (optional)
+    full_text = None
+    if st.button("Extract full text"):
+        with st.spinner("Extracting full text (may take longer for PDFs)..."):
+            full_text = extract_text_from_file(uploaded, preview_only=False)
+        if full_text:
+            st.success("Full text extracted.")
+            if st.checkbox("Show full extracted text"):
+                st.text_area("Full extracted text", full_text[:25000], height=300)
+        else:
+            st.error("Full extraction failed.")
 
-elif mode == "Gemini (cloud, may use quota)":
-    st.info("Gemini calls consume API quota. Use 'Quick preview' to conserve quota.")
-    # quick preview toggle
-    preview_only = st.checkbox("Quick preview (rewrite first 3000 chars)", value=True)
-    model_choice = st.selectbox(
-        "Gemini model",
-        options=[
-            "models/gemini-2.5-flash",
-            "models/gemini-2.5-pro",
-            "models/gemini-flash-latest",
-        ],
-        index=0,
-    )
-    max_req_min = st.slider("Max Gemini requests per minute (throttle)", 1, 60, 10)
-    if st.button("Rewrite with Gemini"):
-        text_for_rewrite = working_text[:3000] if preview_only else working_text
-        with st.spinner("Rewriting with Gemini (quota-safe)..."):
-            rewritten_text = enrich_text_with_gemini_quota_safe(
-                text_for_rewrite,
-                model=model_choice,
-                max_retries_per_chunk=3,
-                throttle_seconds_between_calls=1.2,
-                max_requests_per_minute=max_req_min,
-                use_local_on_failure=True,
-            )
-        st.success("Gemini rewrite finished (or local fallback used).")
-        st.text_area("Rewritten (Gemini) preview", rewritten_text[:20000], height=300)
+    working_text = full_text if full_text else preview_text
 
-else:
-    # No rewrite selected
+    # rewrite options
+    st.markdown("## 2) Rewrite (optional)")
+    rewrite_mode = st.radio("Rewrite mode", ["No rewrite", "Local quick rewrite", "Gemini (cloud)"], index=1, horizontal=True)
     rewritten_text = working_text
 
-# -------------------------
-# Allow user to edit before TTS
-# -------------------------
-st.markdown("### Edit text before generating audio (optional)")
-edited_text = st.text_area("Text to convert to audio", rewritten_text[:200000], height=300)
+    if rewrite_mode == "Local quick rewrite":
+        if st.button("Apply local rewrite"):
+            with st.spinner("Applying local rewrite..."):
+                rewritten_text = simple_local_enrich(working_text)
+            st.success("Local rewrite applied.")
+            st.text_area("Rewritten (local) preview", rewritten_text[:20000], height=240)
+
+    elif rewrite_mode == "Gemini (cloud)":
+        st.info("Gemini uses API quota; enable only if you have GEMINI_API_KEY configured.")
+        preview_only = st.checkbox("Quick preview rewrite (first 3000 chars)", value=True)
+        model_choice = st.selectbox("Gemini model", ["models/gemini-2.5-flash", "models/gemini-flash-latest"])
+        throttle = st.slider("Throttle (req/min)", 1, 60, 10)
+        if st.button("Rewrite with Gemini"):
+            text_for_rewrite = working_text[:3000] if preview_only else working_text
+            with st.spinner("Rewriting via Gemini (quota-safe)..."):
+                rewritten_text = enrich_text_with_gemini_quota_safe(
+                    text_for_rewrite,
+                    model=model_choice,
+                    max_retries_per_chunk=3,
+                    throttle_seconds_between_calls=1.2,
+                    max_requests_per_minute=throttle,
+                    use_local_on_failure=True,
+                )
+            st.success("Gemini rewrite done.")
+            st.text_area("Rewritten (Gemini) preview", rewritten_text[:20000], height=240)
+
+    # editable area
+    st.markdown("## 3) Edit text before TTS (optional)")
+    edited_text = st.text_area("Text to convert to audio", rewritten_text[:200000], height=300)
 
 # -------------------------
-# Generate audio
+# Controls column: language/voice/generate/history
 # -------------------------
-st.markdown("### Generate audio")
-if st.button("🎧 Generate Audio"):
-    if not edited_text.strip():
-        st.error("No text to convert.")
+with col_ctrl:
+    st.markdown("## Controls")
+    # language & voice selection
+    st.markdown("### Language & Voice")
+    available_langs = list(LANG_VOICES.keys())
+    LANG_LABELS = {"en": "English", "hi": "Hindi", "fr": "French", "es": "Spanish", "ta": "Tamil", "te": "Telugu"}
+    lang = st.selectbox("Language", options=available_langs, format_func=lambda x: LANG_LABELS.get(x, x))
+
+    voices = LANG_VOICES.get(lang, [])
+    if voices:
+        voice_labels = [v[1] for v in voices]
+        voice_ids = [v[0] for v in voices]
+        idx = st.selectbox("Voice", options=list(range(len(voice_labels))), format_func=lambda i: voice_labels[i])
+        selected_voice = voice_ids[idx]
     else:
-        with st.spinner("Generating audio..."):
-            audio_path, mime = generate_audio(edited_text)
+        selected_voice = None
 
-        if audio_path:
-            st.success("Audio generated & saved!")
-
-            with open(audio_path, "rb") as f:
-                audio_bytes = f.read()
-
-            st.audio(audio_bytes, format=mime)
-
-            st.download_button(
-                "⬇ Download MP3",
-                data=audio_bytes,
-                file_name=os.path.basename(audio_path),
-                mime=mime
-            )
-
-            st.info(f"Saved file: `{audio_path}`")
-
+    st.markdown("---")
+    st.markdown("### Generate audio")
+    # translate before TTS
+    if st.button("🎧 Generate Audio", use_container_width=True):
+        if not edited_text.strip():
+            st.error("No text to convert.")
         else:
-            st.error("Audio generation failed.")
+            # 1) Translate if target language not English
+            if lang != "en":
+                with st.spinner(f"Translating to {LANG_LABELS.get(lang)}..."):
+                    text_for_tts = translate_text(edited_text, dest_lang=lang)
+            else:
+                text_for_tts = edited_text
 
+            # preview translation option
+            if lang != "en" and st.checkbox("Show translated text preview"):
+                st.text_area("Translated text preview", text_for_tts[:3000], height=200)
 
+            # 2) Generate audio (Edge-TTS) and save file
+            with st.spinner("Generating audio (Edge-TTS)... This may take a few seconds depending on length."):
+                try:
+                    audio_path, mime = generate_audio(text_for_tts, lang=lang, voice=selected_voice)
+                except Exception as e:
+                    st.error(f"Audio generation error: {e}")
+                    audio_path, mime = None, None
 
-# Footer
+            if audio_path and os.path.exists(audio_path):
+                st.success("Audio generated & saved!")
+                # play + download
+                with open(audio_path, "rb") as fh:
+                    audio_bytes = fh.read()
+                st.audio(audio_bytes, format=mime)
+                st.download_button("⬇ Download MP3", data=audio_bytes, file_name=os.path.basename(audio_path), mime=mime)
+                st.markdown(f"Saved: `{audio_path}`")
+            else:
+                st.error("Audio generation failed. Check server logs.")
+
+    st.markdown("---")
+    # -------------------------
+    # Paginated History table
+    # -------------------------
+    st.markdown("## Generated Audio History")
+    files = sorted(AUDIO_DIR.glob("*.mp3"), key=os.path.getmtime, reverse=True)
+    if not files:
+        st.info("No generated audio files yet.")
+    else:
+        page_size = 5
+        total = len(files)
+        total_pages = max(1, math.ceil(total / page_size))
+        # maintain page in session state
+        if "history_page" not in st.session_state:
+            st.session_state["history_page"] = 1
+        page = st.number_input("Page", min_value=1, max_value=total_pages, value=st.session_state["history_page"], step=1)
+        st.session_state["history_page"] = page
+
+        start = (page - 1) * page_size
+        page_files = files[start:start + page_size]
+
+        # build table rows
+        rows = []
+        for f in page_files:
+            name = f.name
+            created = datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            duration = "N/A"
+            if MUTAGEN_AVAILABLE:
+                try:
+                    mp = MP3(f)
+                    seconds = int(mp.info.length)
+                    mins = seconds // 60
+                    secs = seconds % 60
+                    duration = f"{mins:02d}:{secs:02d}"
+                except Exception:
+                    duration = "N/A"
+            rows.append({"File Name": name, "Created": created})
+        st.table(rows)
+
+        # play / download controls per file
+        for f in page_files:
+            cols = st.columns([3, 1])
+            with cols[0]:
+                st.write(f"🎧 {f.name}")
+            with cols[1]:
+                if st.button("▶ Play", key=f"play_{f.name}"):
+                    with open(f, "rb") as fh:
+                        st.audio(fh.read(), format="audio/mp3")
+                if st.button("⬇", key=f"dl_{f.name}"):
+                    with open(f, "rb") as fh:
+                        st.download_button("Download", data=fh.read(), file_name=f.name, mime="audio/mp3", key=f"dlbtn_{f.name}")
+
+# Footer / About modal (collapsible)
 st.markdown("---")
-st.caption("Notes: Gemini requires GEMINI_API_KEY set in environment (.env). Local rewrite is fast and does not use quota.")
+st.markdown("Developed by Nainsi Verma. ❤️")
+with st.expander("About"):
+    st.markdown("""
+    **AudioBook Generator** is an open-source Streamlit app that converts documents (PDF, DOCX, TXT) into multilingual audiobooks.
+    
+    Features include:
+    - Fast text extraction using PyMuPDF for PDFs.
+    - Optional rewriting using Gemini (cloud) or a local quick rewrite.
+    - Translation to multiple languages before Text-to-Speech (TTS).
+    - Multi-language voice selection powered by Edge-TTS.
+    
+    Developed by Nainsi Verma. Contributions and feedback are welcome!
+    """)
