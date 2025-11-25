@@ -4,7 +4,7 @@
 **Target Audience:** Individuals with visual impairments or those who prefer auditory learning.  
 
 ## Overview
-AudioBook Generator is a Streamlit-based application that converts documents and written text into natural-sounding speech using ElevenLabs’ text-to-speech API.  
+AudioBook Generator is a Streamlit-based application that converts documents and written text into natural-sounding speech using Google Text-To-Speech.  
 The tool enhances accessibility by allowing visually impaired users to listen to content such as PDFs, Word files, or plain text — turning reading into an effortless listening experience.
 
 ---
@@ -20,7 +20,7 @@ The tool enhances accessibility by allowing visually impaired users to listen to
 
 ## Tech Stack
 - **Frontend/UI:** Streamlit  
-- **Text-to-Speech Engine:** ElevenLabs API  
+- **Text-to-Speech Engine:** GTTS 
 - **Text Processing:** NLTK, PyPDF2, python-docx  
 - **Backend Language:** Python  
 - **Environment:** `.env` for API key management  
@@ -50,7 +50,6 @@ pip install -r requirements.txt
 ### 4. Add ElevenLabs & Gemini API KEY in .env
 ```bash
 GEMINI_API_KEY=your_gemini_api_key_here
-ELEVEN_API_KEY=your_elevenlabs_api_key_here
 ```
 
 ### 5. Run the app
