@@ -38,7 +38,7 @@ cd AudioBook-Generator
 ### 2. Create a virtual environment
 
 ```bash
-conda create -n 'Audiobook' python=3.13
+conda create -n 'Audiobook' python=3.11
 conda activate Audiobook
 ```
 
@@ -47,7 +47,7 @@ conda activate Audiobook
 pip install -r requirements.txt
 ```
 
-### 4. Add ElevenLabs & Gemini API KEY in .env
+### 4. Add Gemini API KEY in .env
 ```bash
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
