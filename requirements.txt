@@ -7,6 +7,10 @@ pydub
 openai
 python-dotenv
 google-generativeai
+pymupdf
+edge-tts
+googletrans==4.0.0-rc1
+mutagen
 
 
 # Converts text to MP3 audio using Google Text-to-Speech (online).
