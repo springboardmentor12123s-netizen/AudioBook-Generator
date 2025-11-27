@@ -1,5 +1,5 @@
 import google.generativeai as genai
-genai.configure(api_key="AIzaSyCd0ggKGan_yFXhJXwl_K1gLAvHnuzgMjI")
+genai.configure(api_key="AIzaSyAqicsAS6ZliLCpOrWZgKhhb76BcbqNrD4")
 
 model = genai.GenerativeModel("gemini-2.5-flash")
 
@@ -12,3 +12,4 @@ def enrich_text(text):
     response = model.generate_content(prompt)
 
     return response.text
+
