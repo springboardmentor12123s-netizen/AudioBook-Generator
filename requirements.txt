@@ -1,0 +1,9 @@
+streamlit==1.38.0
+openai==1.47.0
+google-generativeai==0.7.0
+PyPDF2==3.0.1
+pdfplumber==0.11.2
+python-docx==1.1.2
+coqui-tts==0.23.0
+torch==2.3.0
+pydub==0.25.1
