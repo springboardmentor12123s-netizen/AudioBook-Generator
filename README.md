@@ -4,7 +4,7 @@
 ## What Week 1 Does
 ✅ Upload PDF / DOCX / TXT  
 ✅ Extract & show text preview  
-❌ No LLM yet  
+✅ Groq LLM Till Now  
 ❌ No voice generation yet  
 
 ## How to Run
