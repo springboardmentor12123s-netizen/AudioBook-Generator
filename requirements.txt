@@ -1,0 +1,5 @@
+streamlit
+PyPDF2
+pdfplumber
+python-docx
+gTTS
