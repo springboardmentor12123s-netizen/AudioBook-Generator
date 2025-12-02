@@ -1,0 +1,8 @@
+streamlit
+PyPDF2
+python-docx
+gTTS
+python-dotenv
+openai
+pyttsx3
+deep-translator 
