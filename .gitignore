@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# API key
+.env
+
+# Generated audio
+generated_audio/
+*.mp3
+
+# Streamlit cache
+.streamlit/
+
+# Replit environment
+.pythonlibs/
+.upm/
+
+# System files
+.DS_Store
+Thumbs.db
