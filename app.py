@@ -1,23 +1,27 @@
-
 import streamlit as st
-from core.extractor import extract_texts
+from text_extraction import extract_text
+from llm_enrichment import enrich_text_for_audio
+from tts_generator import generate_audiobook
 
-st.set_page_config(page_title="AI Audiobook Generator", page_icon="🎧")
-st.title("🎧 AI Audiobook Generator — Week 1")
+st.title("AI Audiobook Generator")
 
-uploaded_files = st.file_uploader(
-    "Upload PDF/DOCX/TXT files",
-    type=["pdf", "docx", "txt"],
-    accept_multiple_files=True
-)
+uploaded_file = st.file_uploader("Upload a document", type=["pdf", "docx", "txt"])
 
-if uploaded_files:
-    st.subheader("Extracted Text Preview")
-    extracted = extract_texts(uploaded_files)
+if uploaded_file:
+    file_type = uploaded_file.name.split('.')[-1]
+    with open(uploaded_file.name, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-    for name, text in extracted.items():
-        st.write(f"**{name}**")
-        preview = (text[:2000] + "...") if len(text) > 2000 else text
-        st.code(preview or "[No text extracted]")
-else:
-    st.info("Upload a file to begin.")
+    st.success("File uploaded successfully!")
+    raw_text = extract_text(uploaded_file.name)
+    st.text_area("Extracted Text Preview", raw_text[:])
+
+    if st.button("Generate Audiobook "):
+        with st.spinner("Enhancing text using Gemini..."):
+            enriched_text = enrich_text_for_audio(raw_text)
+        with st.spinner("Converting text to audio..."):
+            audio_path = generate_audiobook(enriched_text)
+        st.success("Audiobook ready!")
+        st.audio(audio_path, format="audio/wav")
+        with open(audio_path, "rb") as audio_file:
+            st.download_button("Download Audiobook", audio_file, file_name="audiobook.wav")
