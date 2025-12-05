@@ -1,0 +1,67 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.so
+
+# ---- Virtual Environment ----
+venv/
+env/
+ENV/
+.venv/
+*.egg-info/
+.eggs/
+
+# ---- Build / Packaging ----
+build/
+dist/
+*.egg
+*.manifest
+*.spec
+
+# ---- OS Specific ----
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ---- IDE Specific ----
+# VS Code
+.vscode/
+.history/
+
+# PyCharm
+.idea/
+
+# ---- Large Files to Avoid ----
+*.dll
+*.lib
+*.exe
+*.zip
+*.tar
+*.rar
+*.7z
+
+# ---- Logs ----
+*.log
+
+# ---- Streamlit Cache ----
+.streamlit/
+.cache/
+
+# ---- Audio (If you generate output locally) ----
+# Uncomment if needed
+# *.mp3
+# *.wav
+# *.ogg
+
+# ---- Temporary Files ----
+tmp/
+temp/

@@ -1,0 +1,8 @@
+streamlit
+gTTS
+pdfplumber
+python-docx
+openai
+
+
+

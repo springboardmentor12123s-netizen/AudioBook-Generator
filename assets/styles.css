@@ -1,0 +1,33 @@
+.title {
+    font-size: 45px;
+    font-weight: 800;
+    color: #4B79A1;
+    text-align: center;
+    margin-bottom: -5px;
+}
+
+.subtitle {
+    font-size: 20px;
+    color: #444;
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.stButton>button {
+    background: linear-gradient(to right, #4B79A1, #283E51);
+    color: white !important;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 18px;
+}
+
+.stDownloadButton>button {
+    background: linear-gradient(to right, #11998e, #38ef7d);
+    color: black !important;
+    font-size: 18px;
+    border-radius: 10px;
+}
+.stButton>button:hover {
+    background: linear-gradient(to right, #283E51, #4B79A1);
+    color: white !important;
+}
