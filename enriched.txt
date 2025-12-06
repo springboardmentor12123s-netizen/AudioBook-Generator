@@ -1,1 +1,50 @@
-Hey. this is prashanth. How are you doing. This is the sample pdf for audiobook generator
+Here's a rewritten passage, structured for engaging audiobook narration:
+
+(Smooth, confident opening music fades in and out)
+
+"Welcome to the professional profile of Prashanth Achana. Prashanth is a detail-oriented Data Analyst with a strong foundation in Python, SQL, Tableau, and Power BI. He brings hands-on internship experience in analytics, machine learning, and dashboarding, and is highly skilled in data cleaning, exploratory data analysis, visualization, reporting, and generating crucial business insights. He's successfully built projects in areas like retail analytics and churn prediction, consistently demonstrating his ability to translate complex data into actionable strategies.
+
+**Education:**
+
+Prashanth earned his Bachelor of Technology in Computer Science Engineering from the Bharat Institute of Engineering and Technology, completing his studies between 2021 and 2025, with an impressive Cumulative Grade Point Average of seven point nine four. Prior to that, he attended Sri Vidya Junior College from 2019 to 2021, achieving an aggregate of ninety-three point six percent, and ZP High School in 2019, with a CGPA of nine point five.
+
+**Projects:**
+
+Let's explore some of Prashanth's key projects:
+
+First, **Document RAG with Streamlit using Sentence Transformers.** Developed between August and September of 2025, this project leveraged Python and Machine Learning. Prashanth developed a Streamlit-based application for Retrieval Augmented Generation – or RAG – to process PDF documents and web URLs, enabling semantic similarity-based querying. He implemented text embedding using the all MiniLM L6 V2 Sentence Transformer model, combined with cosine similarity search and a configurable threshold.
+
+Next, **Customer Churn Prediction in the Telecom Industry.** From January to July 2025, using Python, Seaborn, and Matplotlib, Prashanth analyzed seven thousand customer records to understand the primary drivers behind customer churn. He meticulously explored correlations between customer tenure, contract types, charges, and a twenty-six percent churn rate. Through this analysis, he created fifteen insightful visualizations and identified three high-risk customer segments, contributing to a potential reduction in churn by ten to twelve percent.
+
+**Internship Experience:**
+
+Prashanth also brings valuable internship experience:
+
+As a **MySQL with SpringBoot Intern** at Verzeo Private Limited, working remotely from August to November 2022, he analyzed ten thousand restaurant records. His goal was to understand city-wise cuisine demand, pricing structures, and online delivery metrics. He produced twenty different charts, including histograms, bar charts, and geospatial maps, highlighting five key restaurant clusters that provided crucial operational insights.
+
+He is currently serving as an **HR Business Process AI Automation Trainee** at BAD Vendor Private Limited, a remote role ongoing from October 2025 to the present. In this position, he's actively developing and managing EDK screens for an Enterprise Resource Planning system. He's also performed feature engineering and clustering to identify three high-value customer groups.
+
+And as a **Data Science Intern** at Infosys Springboard, a role also ongoing from November 2025 to the present, Prashanth is applying prompt engineering and model tuning to enhance audio quality and performance. A key part of this role involves developing an Audio Book Generator using Python and Large Language Models to convert text into natural-sounding speech.
+
+**Skills:**
+
+Prashanth's comprehensive skill set includes:
+
+*   **Analytics:** Data Cleaning, Exploratory Data Analysis, Statistical Analysis, Reporting, and Visualization.
+*   **Programming:** Python, SQL, and Excel.
+*   **Libraries:** Pandas, NumPy, Scikit-learn, Matplotlib, and Seaborn.
+*   **BI Tools:** Tableau and Power BI.
+*   **Machine Learning Skills:** Classification, Regression, Clustering, and Model Evaluation.
+*   **Tools:** Jupyter Notebook, VS Code, and PyCharm.
+*   **Soft Skills:** Communication, Problem Solving, and Team Collaboration.
+
+**Certifications:**
+
+Finally, Prashanth holds several important certifications:
+
+*   Full Stack Data Science and GenAI from Naresh IT, earned in 2025.
+*   A Verzeo Internship Completion certification from 2022.
+*   The Deloitte Data Analytics Job Simulation from Forage, completed in 2025.
+*   And a Verzeo Course Completion certification from 2022.
+
+(Closing music fades in)"

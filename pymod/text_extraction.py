@@ -60,3 +60,14 @@ def extract_text(uploaded, save_to: Optional[str] = None) -> str:
     if save_to:
         safe_write_text(save_to, cleaned)
     return cleaned
+# inside text_extraction.py - add docx extraction function
+import docx
+def _extract_docx_from_stream(file_stream):
+    import tempfile
+    tf = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
+    tf.write(file_stream.read())
+    tf.flush(); tf.close()
+    doc = docx.Document(tf.name)
+    paras = [p.text for p in doc.paragraphs if p.text.strip()]
+    Path(tf.name).unlink(missing_ok=True)
+    return "\n\n".join(paras)

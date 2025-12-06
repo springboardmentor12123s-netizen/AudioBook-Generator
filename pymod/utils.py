@@ -1,7 +1,6 @@
 # modules/utils.py
 from typing import List
 from pathlib import Path
-import re
 import os
 
 def chunk_text_by_chars(text: str, max_chars: int = 2000) -> List[str]:
@@ -65,3 +64,19 @@ def clean_extracted_text(raw: str) -> str:
     t = normalize_whitespace_and_punctuation(t)
     t = make_audio_friendly(t)
     return t
+
+# in modules/utils.py — add/ensure these functions exist
+import re
+def fix_hyphenation_across_lines(text: str) -> str:
+    return re.sub(r'(?<=\w)-\s*\n\s*(?=\w)', '', text)
+
+def make_audio_friendly(text: str) -> str:
+    text = text.replace('_', ' ')
+    text = text.replace('—', ' ')
+    text = text.replace('–', ' ')
+    text = re.sub(r'\s+', ' ', text)
+    # remove sequences of non-word chars except sentence punctuation
+    text = re.sub(r'[^A-Za-z0-9.,?!\'\" \n]', ' ', text)
+    # ensure sentences end with punctuation for natural TTS pause
+    text = re.sub(r'([a-z0-9])\n([A-Z])', r'\1. \2', text)
+    return text.strip()
