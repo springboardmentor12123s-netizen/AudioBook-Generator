@@ -1,39 +1,85 @@
+from pathlib import Path
+from typing import List
 
-from typing import List, Dict
-from io import BytesIO
+from PyPDF2 import PdfReader
 import pdfplumber
-from docx import Document
+import docx
 
-def _extract_pdf(file_bytes: bytes) -> str:
-    text = []
-    with pdfplumber.open(BytesIO(file_bytes)) as pdf:
-        for page in pdf.pages:
-            page_text = page.extract_text() or ""
-            text.append(page_text)
-    return "\n".join(text).strip()
 
-def _extract_docx(file_bytes: bytes) -> str:
-    bio = BytesIO(file_bytes)
-    doc = Document(bio)
-    return "\n".join([p.text for p in doc.paragraphs]).strip()
-
-def _extract_txt(file_bytes: bytes) -> str:
+def _read_pdf(uploaded_file) -> str:
+    """
+    Try to read text from a PDF using PyPDF2 first,
+    and pdfplumber as a fallback.
+    """
+    # First try PyPDF2
     try:
-        return file_bytes.decode("utf-8", errors="ignore").strip()
+        reader = PdfReader(uploaded_file)
+        pages_text = []
+        for page in reader.pages:
+            txt = page.extract_text()
+            if txt:
+                pages_text.append(txt)
+        text = "\n".join(pages_text).strip()
+        if text:
+            return text
+    except Exception:
+        pass
+
+    # Fallback to pdfplumber
+    try:
+        uploaded_file.seek(0)
+        with pdfplumber.open(uploaded_file) as pdf:
+            pages_text = []
+            for page in pdf.pages:
+                txt = page.extract_text()
+                if txt:
+                    pages_text.append(txt)
+        return "\n".join(pages_text).strip()
     except Exception:
         return ""
 
-def extract_texts(uploaded_files: List) -> Dict[str, str]:
-    out = {}
+
+def _read_docx(uploaded_file) -> str:
+    doc = docx.Document(uploaded_file)
+    return "\n".join(p.text for p in doc.paragraphs).strip()
+
+
+def _read_txt(uploaded_file) -> str:
+    data = uploaded_file.read()
+    if isinstance(data, bytes):
+        return data.decode("utf-8", errors="ignore").strip()
+    return str(data).strip()
+
+
+def extract_texts(uploaded_files: List) -> str:
+    """
+    uploaded_files: list of Streamlit UploadedFile objects.
+    Returns ONE big string with headings per file,
+    which app.py shows in a single text area.
+    """
+    chunks = []
+
     for f in uploaded_files:
         name = f.name
-        data = f.read()
-        if name.lower().endswith(".pdf"):
-            out[name] = _extract_pdf(data)
-        elif name.lower().endswith(".docx"):
-            out[name] = _extract_docx(data)
-        elif name.lower().endswith(".txt"):
-            out[name] = _extract_txt(data)
+        suffix = Path(name).suffix.lower()
+
+        if suffix == ".pdf":
+            text = _read_pdf(f)
+        elif suffix == ".docx":
+            text = _read_docx(f)
+        elif suffix == ".txt":
+            text = _read_txt(f)
         else:
-            out[name] = "[Unsupported file type]"
-    return out
+            text = ""
+
+        if not text:
+            text = "[No text could be extracted from this file]"
+
+        # nice heading per file
+        chunk = f"===== {name} =====\n{text}"
+        chunks.append(chunk)
+
+        # reset file pointer in case Streamlit reuses it
+        f.seek(0)
+
+    return "\n\n\n".join(chunks)
