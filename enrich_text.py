@@ -1,5 +1,13 @@
+import os
+from dotenv import load_dotenv
 import google.generativeai as genai
-genai.configure(api_key="GEMINI API KEY")
+
+# Load API key from .env file
+load_dotenv()
+api_key = os.getenv("GEMINI_API_KEY")
+
+# Configure Gemini
+genai.configure(api_key=api_key)
 
 model = genai.GenerativeModel("gemini-2.5-flash")
 
@@ -8,9 +16,8 @@ def enrich_text(text):
         "Rewrite the following text in an engaging, listener-friendly audiobook narration style.\n\n"
         f"{text}"
     )
-
     response = model.generate_content(prompt)
-
     return response.text
+
 
 
