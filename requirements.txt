@@ -2,3 +2,6 @@
 streamlit
 pdfplumber
 python-docx
+python-dotenv
+google-generativeai
+
