@@ -1,5 +1,3 @@
-# utils.py
-# Handles Text Extraction, Translation, and TTS
 
 import streamlit as st
 import PyPDF2
@@ -8,7 +6,7 @@ from gtts import gTTS
 import pyttsx3
 import io
 import os
-from deep_translator import GoogleTranslator # The new reliable translator
+from deep_translator import GoogleTranslator
 
 def extract_text(uploaded_file):
     """Extracts text from PDF, DOCX, or TXT."""
@@ -37,18 +35,17 @@ def translate_text(text, target_lang_code):
     This is much more reliable than using an LLM.
     """
     try:
-        # GoogleTranslator limits text length (approx 5000 chars), so we split it if needed.
-        # For simplicity in this example, we treat it as one block, but deep_translator handles standard chunks well.
+        
         translator = GoogleTranslator(source='auto', target=target_lang_code)
         return translator.translate(text)
     except Exception as e:
         st.error(f"Translation Error: {e}")
-        return text # Return original text if translation fails
+        return text 
 
 def convert_text_to_speech_gtts(text, lang='en'):
     """Online TTS using Google Text-to-Speech (Supports Telugu, Hindi, etc.)"""
     try:
-        # gTTS expects 'te' for Telugu, 'hi' for Hindi, etc.
+        
         tts = gTTS(text=text, lang=lang, slow=False)
         audio_fp = io.BytesIO()
         tts.write_to_fp(audio_fp)
