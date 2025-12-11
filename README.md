@@ -1,35 +1,38 @@
+🎧 Audiobook Generator
 
-# AI Audiobook Generator — Week 1 Starter
+The Audiobook Generator is a simple project that converts text into clear and natural-sounding speech using a text-to-speech (TTS) model.
+It allows users to upload text files (PDF, DOCX, TXT), extract the text automatically, and generate an audio file in just a few steps.
 
-## What Week 1 Does
-✅ Upload PDF / DOCX / TXT  
-✅ Extract & show text preview  
-❌ No LLM yet  
-❌ No voice generation yet  
+🚀 Features
 
-## How to Run
+Convert PDF, DOCX, and TXT files into audio
 
-### 1) Create a virtual environment
-Windows:
-```
-python -m venv .venv
-.venv\Scripts\activate
-```
+Clean and simple user interface
 
-Mac/Linux:
-```
-python3 -m venv .venv
-source .venv/bin/activate
-```
+Automatic text extraction
 
-### 2) Install dependencies
-```
-pip install -r requirements.txt
-```
+Downloadable audio output
 
-### 3) Run Streamlit app
-```
-streamlit run app.py
-```
+Supports multiple languages (depending on TTS engine)
 
-Open the link it gives (usually http://localhost:8501)
+Easy to run and minimal setup
+
+🛠️ Technologies Used
+
+Python
+
+gTTS / Gemini / (your chosen TTS model)
+
+Streamlit (if used for UI)
+
+pdfplumber, python-docx, gtts, etc.
+
+📥 How It Works
+
+Upload a file (PDF, DOCX, or TXT)
+
+Text will be extracted automatically
+
+The app converts text to speech
+
+Download your generated audio file (MP3)
