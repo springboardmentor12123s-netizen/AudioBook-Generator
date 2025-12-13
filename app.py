@@ -35,11 +35,31 @@ if uploaded_file:
     # Show enhanced text
     if st.session_state.enriched_text:
         st.text_area("Enhanced Audiobook Text", st.session_state.enriched_text[:3000], height=250)
+           # Choose language for audiobook
+        language = st.selectbox(
+            "Select Audio Language",
+            [
+                ("English", "en"),
+                ("Hindi", "hi"),
+                ("Telugu", "te"),
+                ("Tamil", "ta"),
+                ("Kannada", "kn"),
+                ("Malayalam", "ml"),
+                ("French", "fr"),
+                ("Spanish", "es"),
+                ("German", "de")
+            ],
+            format_func=lambda x: x[0]
+        )[1]
+
 
         # Generate Audio Button
         if st.button("Generate Audio"):
             with st.spinner("Generating audio... Please wait..."):
-                audio_file = create_audio(st.session_state.enriched_text)
+                audio_file = create_audio(
+                    st.session_state.enriched_text,
+                    language=language
+                )
 
                 # Read audio file
                 with open(audio_file, "rb") as audio:
