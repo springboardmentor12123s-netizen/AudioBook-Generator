@@ -1,0 +1,23 @@
+{
+    "app_title": "🎧 ऑडियोबुक और गीत लिरिक्स जनरेटर",
+    "nav_text_to_audio": "टेक्स्ट से ऑडियोबुक",
+    "nav_song_to_lyrics": "गीत से लिरिक्स",
+    "subtitle_text_to_audio": "टेक्स्ट या PDF को ऑडियोबुक में बदलें",
+    "subtitle_song_to_lyrics": "किसी भी गाने से साफ-सुथरे लिरिक्स निकालें",
+    "choose_input_type": "इनपुट प्रकार चुनें:",
+    "upload_pdf": "PDF अपलोड करें",
+    "enter_text": "टेक्स्ट लिखें",
+    "upload_pdf_prompt": "टेक्स्ट निकालने के लिए PDF अपलोड करें",
+    "extracted_text": "निकाला गया टेक्स्ट:",
+    "enter_text_prompt": "यहाँ अपना टेक्स्ट लिखें...",
+    "generate_audio_btn": "ऑडियोबुक बनाएं",
+    "error_no_text": "कृपया पहले टेक्स्ट डालें या अपलोड करें!",
+    "audio_generating": "🎵 आपकी ऑडियोबुक बनाई जा रही है... कृपया प्रतीक्षा करें।",
+    "download_audio": "ऑडियोबुक डाउनलोड करें",
+    "upload_song_prompt": "गाना/ऑडियो फ़ाइल अपलोड करें",
+    "audio_uploaded": "ऑडियो सफलतापूर्वक अपलोड हो गया!",
+    "extract_lyrics_btn": "लिरिक्स निकालें",
+    "extracting_lyrics": "🎶 लिरिक्स निकाले जा रहे हैं... इसमें कुछ समय लग सकता है।",
+    "lyrics_output": "निकाले गए लिरिक्स:",
+    "download_lyrics": "लिरिक्स डाउनलोड करें"
+}

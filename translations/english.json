@@ -1,0 +1,23 @@
+{
+    "app_title": "🎧 AudioBook & Lyrics Generator",
+    "nav_text_to_audio": "Text to Audiobook",
+    "nav_song_to_lyrics": "Song to Lyrics",
+    "subtitle_text_to_audio": "Convert Text or PDF into an Audiobook",
+    "subtitle_song_to_lyrics": "Extract Clean Lyrics from Any Song",
+    "choose_input_type": "Choose Input Type:",
+    "upload_pdf": "Upload PDF",
+    "enter_text": "Enter Text",
+    "upload_pdf_prompt": "Upload a PDF file to extract text",
+    "extracted_text": "Extracted Text:",
+    "enter_text_prompt": "Write or paste your text here...",
+    "generate_audio_btn": "Generate Audiobook",
+    "error_no_text": "Please enter or upload text first!",
+    "audio_generating": "🎵 Generating your audiobook... Please wait.",
+    "download_audio": "Download Audiobook",
+    "upload_song_prompt": "Upload a song/audio file",
+    "audio_uploaded": "Audio uploaded successfully!",
+    "extract_lyrics_btn": "Extract Lyrics",
+    "extracting_lyrics": "🎶 Extracting lyrics... This may take a moment.",
+    "lyrics_output": "Extracted Lyrics:",
+    "download_lyrics": "Download Lyrics"
+}

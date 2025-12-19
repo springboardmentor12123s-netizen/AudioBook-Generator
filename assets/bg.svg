@@ -1,0 +1,24 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Gradient Definition -->
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="50%" stop-color="#9333ea"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded Background -->
+  <rect width="512" height="512" rx="120" fill="url(#grad1)"/>
+
+  <!-- Headphones Icon -->
+  <path d="M256 140c-74 0-134 60-134 134v70c0 20 16 36 36 36s36-16 36-36v-60c0-16-12-28-28-28s-28 12-28 28v50c0 6-4 10-10 10s-10-4-10-10v-60c0-62 50-112 112-112s112 50 112 112v60c0 6-4 10-10 10s-10-4-10-10v-50c0-16-12-28-28-28s-28 12-28 28v60c0 20 16 36 36 36s36-16 36-36v-70c0-74-60-134-134-134z"
+        fill="white" opacity="0.95"/>
+
+  <!-- Book Icon -->
+  <path d="M180 320h152c10 0 18 8 18 18v14c0 10-8 18-18 18H180c-10 0-18-8-18-18v-14c0-10 8-18 18-18zm0-40h152c10 0 18 8 18 18v10c0 10-8 18-18 18H180c-10 0-18-8-18-18v-10c0-10 8-18 18-18z"
+        fill="white" opacity="0.9"/>
+
+</svg>
+

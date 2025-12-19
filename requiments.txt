@@ -1,8 +1,9 @@
 streamlit
-gTTS
-pdfplumber
-python-docx
+pydub
 openai
-
+PyPDF2
+google-cloud-speech
+google-cloud-storage
+google-cloud-language
 
 

@@ -1,73 +1,113 @@
 import streamlit as st
-from core.extractors import extract_text_from_file
-from core.llm import enrich_text_with_llm
-from core.tts import text_to_speech
-from core.utils import split_text_for_tts, safe_filename
-import os
-from io import BytesIO
+from services.audio_services import generate_speech
+from utils.lyrics_extractor import extract_lyrics_from_audio
+from utils.file_utils import extract_text_from_file, save_uploaded_file
+from utils.summarizer import summarize_text
+from utils.translator import translate_text
 
-# Streamlit page settings
-st.set_page_config(page_title="🎧 AudioBook Generator", layout="wide")
-# Load custom CSS for styling
-with open("assets/styles.css", "r") as css:
-    st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
+# ------------------------------------
+# Page Configuration
+# ------------------------------------
+st.set_page_config(
+    page_title="Audiobook Generator",
+    page_icon="🎧",
+    layout="centered"
+)
 
-# Page title & subtitle
-st.markdown("<h1 class='title'>🎧 AudioBook Generator</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Convert PDF, DOCX, and TXT files into high-quality audiobooks.</p>", unsafe_allow_html=True)
+page_bg = """
+<style>
+.stApp {
+    background: linear-gradient(120deg, #0f0f29, #1b1b3a, #10101e);
+    background-size: 400% 400%;
+    animation: gradientBG 12s ease infinite;
+    color: #ffffff;
+}
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+</style>
+"""
+st.markdown(page_bg, unsafe_allow_html=True)
 
-# File upload
-uploaded_files = st.file_uploader("📂 Upload files", accept_multiple_files=True, type=['pdf', 'docx', 'txt'])
+st.markdown("<h1 style='text-align:center;'>🎧 Audiobook Generator</h1>", unsafe_allow_html=True)
 
-# Language selection
-lang = st.selectbox("🌐 Audio Language", ["English (en)", "Hindi (hi)"])
-language_code = "en" if "English" in lang else "hi"
+tab1, tab2, tab3 = st.tabs(["📄 Text → Audio", "📁 File → Audio", "🎵 Audio → Lyrics"])
 
-# Optional AI enhancement
-use_llm = st.checkbox("✨ Enhance narration with AI")
+# ===================================================
+# 1) TEXT → AUDIOBOOK TAB
+# ===================================================
+with tab1:
+    st.subheader("Convert text into an audiobook")
 
-# Main processing
-if st.button("Generate Audiobook 🎶"):
-    if not uploaded_files:
-        st.warning("⚠️ Please upload at least one file.")
-        st.stop()
+    user_text = st.text_area("Enter text", height=200)
+    voice = st.selectbox("Choose voice", ["male", "female"])
+    lang = st.selectbox("Output Language", ["English", "Hindi"])
+    do_summary = st.checkbox("Summarize before converting?")
 
-    # Create temp folder for audio output
-    os.makedirs("temp_audio", exist_ok=True)
-    combined_text = ""
+    if st.button("Generate Audiobook"):
+        if not user_text.strip():
+            st.error("Please enter text.")
+        else:
+            if do_summary:
+                user_text = summarize_text(user_text)
 
-    # Extract text from uploaded files
-    st.info("📄 Extracting text from files...")
-    for file in uploaded_files:
-        st.write(f"✔️ Processing: **{file.name}**")
-        combined_text += "\n\n" + extract_text_from_file(file)
+            if lang == "Hindi":
+                user_text = translate_text(user_text, target_lang="hi")
 
-    # Apply AI enhancement if enabled
-    if use_llm:
-        st.info("🧠 Enhancing content using AI...")
-        combined_text = enrich_text_with_llm(combined_text)
+            audio_file = generate_speech(user_text, voice)
 
-    # Split text into chunks suitable for TTS
-    chunks = split_text_for_tts(combined_text, 2500)
-    st.info(f"🔊 Generating {len(chunks)} audio segments...")
+            st.audio(audio_file)
+            st.download_button("Download MP3", audio_file, file_name="audiobook.mp3")
+            st.success("Audiobook generated successfully!")
 
-    mp3_paths = []
 
-    # Convert each chunk to audio
-    for i, chunk in enumerate(chunks):
-        output_path = f"temp_audio/part_{i+1}.mp3"
-        text_to_speech(chunk, lang=language_code, out_path=output_path)
-        mp3_paths.append(output_path)
+# ===================================================
+# 2) FILE → AUDIOBOOK TAB
+# ===================================================
+with tab2:
+    st.subheader("Upload a PDF / DOCX / TXT and convert to audio")
 
-    # Merge all MP3 parts into one output file
-    final_mp3 = "temp_audio/audiobook_final.mp3"
-    with open(final_mp3, "wb") as f:
-        for p in mp3_paths:
-            f.write(open(p, "rb").read())
+    file = st.file_uploader("Upload file", type=["pdf", "docx", "txt"])
+    voice = st.selectbox("Choose voice", ["male", "female"], key="file_voice")
+    lang = st.selectbox("Output Language", ["English", "Hindi"], key="file_lang")
+    do_summary_file = st.checkbox("Summarize extracted text?")
 
-    # Display and download audio
-    st.success("🎉 Audiobook generated successfully!")
-    st.audio(final_mp3)
+    if st.button("Convert File to Audio"):
+        if file is None:
+            st.error("Please upload a file.")
+        else:
+            saved_path = save_uploaded_file(file)
+            extracted_text = extract_text_from_file(saved_path)
 
-    with open(final_mp3, "rb") as f:
-        st.download_button("⬇️ Download Audiobook", f, "audiobook.mp3", "audio/mpeg")
+            if do_summary_file:
+                extracted_text = summarize_text(extracted_text)
+
+            if lang == "Hindi":
+                extracted_text = translate_text(extracted_text, target_lang="hi")
+
+            audio_file = generate_speech(extracted_text, voice)
+
+            st.audio(audio_file)
+            st.download_button("Download MP3", audio_file, file_name="file_audio.mp3")
+            st.success("Conversion completed!")
+
+
+# ===================================================
+# 3) AUDIO → LYRICS TAB
+# ===================================================
+with tab3:
+    st.subheader("Upload an audio file to extract lyrics")
+
+    audio_file_upload = st.file_uploader("Upload audio", type=["mp3", "wav", "m4a"])
+
+    if st.button("Extract Lyrics"):
+        if audio_file_upload is None:
+            st.error("Please upload an audio file.")
+        else:
+            audio_path = save_uploaded_file(audio_file_upload)
+            lyrics = extract_lyrics_from_audio(audio_path)
+
+            st.text_area("Extracted Lyrics", lyrics, height=300)
+            st.success("Lyrics extracted!")
