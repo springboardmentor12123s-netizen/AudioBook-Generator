@@ -1,38 +1,30 @@
-🎧 Audiobook Generator
+                           AUDIOBOOK GENERATOR
+OBJECTIVE : 
+            AudioBook Generator is a web application that allows users to upload text documents (PDF, DOCX) and automatically converts them into high-quality audiobooks.
+EXECUTION PLAN : 
+                                            User Uploads Documents
+                                 
+                                                   Text Extraction 
 
-The Audiobook Generator is a simple project that converts text into clear and natural-sounding speech using a text-to-speech (TTS) model.
-It allows users to upload text files (PDF, DOCX, TXT), extract the text automatically, and generate an audio file in just a few steps.
+                                               LLM-Based Text Enrichment 
 
-🚀 Features
+                                                  Text-to-Speech Conversion 
 
-Convert PDF, DOCX, and TXT files into audio
+                                                      Audio Download
+STEP 1 : Takes input from the user.
+STEP 2 : Extracts text from the uploaded file. 
+                PDF :- pdfplumber 
+                DOCX :-  python-docx
+                OUTPUT : Extracts text from the uploaded file.
+STEP 3 : Enriches the extracted text 
+               Used gemini-2.5-flash LLM model
+               OUTPUT : Converts the text into listener friendly audiobook narration   style.
+STEP 4 : Select the preferred language in the drop down.
+               Used google translator for translating audio into preferred language.
+STEP 5 : The enriched text converted into speech.
+               gTTS is used for text-to speech conversion
+               OUTPUT : 
+                                • Generated can be listen itself or we can download lt.
+                                • The downloaded file is in .mp3 format.
 
-Clean and simple user interface
 
-Automatic text extraction
-
-Downloadable audio output
-
-Supports multiple languages (depending on TTS engine)
-
-Easy to run and minimal setup
-
-🛠️ Technologies Used
-
-Python
-
-gTTS / Gemini / (your chosen TTS model)
-
-Streamlit (if used for UI)
-
-pdfplumber, python-docx, gtts, etc.
-
-📥 How It Works
-
-Upload a file (PDF, DOCX, or TXT)
-
-Text will be extracted automatically
-
-The app converts text to speech
-
-Download your generated audio file (MP3)
