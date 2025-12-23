@@ -1,59 +1,66 @@
-🎧 Multilingual AI Audiobook Generator
+# 🎧 Multilingual AI Audiobook Generator
 
-The Multilingual AI Audiobook Generator allows users to upload PDF / DOCX / TXT documents and automatically convert them into audiobook-style MP3 narration.
+The **Multilingual AI Audiobook Generator** allows users to upload **PDF / DOCX / TXT** documents and automatically convert them into **audiobook-style MP3 narration**.
+
 The system can:
+- Detect the original language of the document
+- Generate audio in the original language
+- Translate and rewrite content in an audiobook-friendly style
+- Generate audio in a selected target language
 
-Detect the original language of the document
+---
 
-Generate audio in the original language
+## 🚀 Key Features
 
-Translate + rewrite in an audiobook-friendly style
+- Upload **PDF / DOCX / TXT** files
+- Automatic language detection
+- Chapter-based text processing
+- Generate two types of audio:
+  - Original-language narration
+  - Translated & rephrased audiobook narration
+- Supports **7 languages**:
+  - English
+  - Hindi
+  - Marathi
+  - Tamil
+  - Telugu
+  - Bengali
+  - Gujarati
+- Streamlit-based clean user interface
 
-Generate audio in a selected target language
+---
 
-🚀 Key Features
+## 🛠 Technology Stack
 
-Upload PDF / DOCX / TXT files
+| Component | Technology |
+|--------|------------|
+| UI | Streamlit |
+| Text Extraction | PyPDF2, python-docx |
+| AI Model | Google Gemini |
+| Text-to-Speech | gTTS |
+| Language Translation & Rephrasing | Gemini NLP |
+| Environment Management | python-dotenv |
 
-Automatic language detection
+---
 
-Chapter-based processing
+## 📂 Project Structure
 
-Generate two types of audio:
-
-Original-language narration
-
-Translated & rephrased audiobook narration
-
-Supports 7 languages:
-
-English, Hindi, Marathi, Tamil, Telugu, Bengali, Gujarati
-
-Streamlit-based clean user interface
-
-🛠 Technology Stack
-Component	Technology
-UI	Streamlit
-Text Extraction	PyPDF2, python-docx
-AI Model	Google Gemini
-Text-to-Speech	gTTS
-Language Translation & Rephrasing	Gemini NLP
-Environment Management	python-dotenv
-📂 Project Structure
+```text
 Multilingual_Audiobook/
-│ app.py
-│ requirements.txt
-│ .env   (not uploaded to GitHub)
-│ .gitignore
 │
-├─ utils/
-│   extract_text.py
-│   chapters.py
-│   nlp.py
-│   tts.py
+├── app.py
+├── requirements.txt
+├── .env                # Not uploaded to GitHub
+├── .gitignore
 │
-└─ outputs/
-    └─ audio/        (generated audio saved here)
+├── utils/
+│   ├── extract_text.py
+│   ├── chapters.py
+│   ├── nlp.py
+│   └── tts.py
+│
+└── outputs/
+    └── audio/          # Generated audio saved here
 
 ⚙ Installation & Setup
 1️⃣ Install dependencies
