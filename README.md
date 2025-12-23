@@ -83,9 +83,9 @@ This project enhances **accessibility**, **productivity**, and the **enjoyment o
 
 ```mermaid
 graph TD
-    A[User (Streamlit Web UI)] --> B[File Upload]
+    A["User (Streamlit Web UI)"] --> B[File Upload]
     B --> C[Text Extraction]
     C --> D[LLM Rewriting]
-    D --> E[Text-to-Speech (TTS)]
+    D --> E["Text-to-Speech (TTS)"]
     E --> F[Audio File Generation]
     F --> G[User Download]
