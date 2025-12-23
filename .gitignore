@@ -3,3 +3,5 @@
 __pycache__/
 outputs/
 *.mp3
+# IDE files
+.idea/
