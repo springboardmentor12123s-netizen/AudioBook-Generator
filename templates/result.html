@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Your Audiobook is Ready{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[80vh]">
+
+    <!-- Success Icon -->
+    <div class="text-center mb-8 opacity-0 animate-fade-in-up">
+        <div class="mb-4">
+            <svg class="w-20 h-20 mx-auto text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+        <h1 class="text-3xl font-semibold text-gray-900 mb-2">Your audiobook is ready!</h1>
+        <p class="text-gray-600">Listen below or download the file</p>
+    </div>
+
+    <!-- Audio Player Card -->
+    <div class="w-full max-w-md bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 opacity-0 animate-fade-in-up animation-delay-100">
+
+        <!-- Audio Player -->
+        <div class="mb-6">
+            <audio controls class="w-full" id="audio-player">
+                <source src="{{ url_for('serve_audio', filename=filename) }}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+        </div>
+
+        <!-- Download Button -->
+        <a href="{{ url_for('download', filename=filename) }}"
+           class="block w-full py-3 px-4 bg-gray-900 text-white text-center rounded-lg font-medium transition-all hover:bg-gray-800">
+            <svg class="w-5 h-5 inline mr-2 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Download MP3
+        </a>
+    </div>
+
+    <!-- Convert Another -->
+    <a href="{{ url_for('index') }}"
+       class="text-gray-600 hover:text-gray-900 transition-colors opacity-0 animate-fade-in-up animation-delay-200">
+        <svg class="w-4 h-4 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Convert another document
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-scroll to player on mobile
+    const audioPlayer = document.getElementById('audio-player');
+    if (window.innerWidth < 768) {
+        setTimeout(() => {
+            audioPlayer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 500);
+    }
+</script>
+{% endblock %}

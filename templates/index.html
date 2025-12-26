@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}AudioBook Generator - Convert Documents to Audio{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[80vh]">
+
+    <!-- Header -->
+    <div class="text-center mb-10 opacity-0 animate-fade-in-up">
+        <div class="mb-4">
+            <svg class="w-16 h-16 mx-auto text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+        </div>
+        <h1 class="text-3xl font-semibold text-gray-900 mb-2">AudioBook Generator</h1>
+        <p class="text-gray-600">Transform your documents into audio</p>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="w-full max-w-md mb-4 p-4 rounded-lg {% if category == 'error' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Upload Card -->
+    <div class="w-full max-w-md bg-white rounded-xl shadow-sm border border-gray-200 p-8 opacity-0 animate-fade-in-up animation-delay-100">
+        <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" id="upload-form">
+
+            <!-- Drop Zone -->
+            <div class="drop-zone border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer transition-all hover:border-gray-400 mb-6" id="drop-zone">
+                <input type="file" name="file" id="file-input" class="hidden" accept=".pdf,.docx,.txt">
+
+                <div id="upload-prompt">
+                    <svg class="w-10 h-10 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <p class="text-gray-600 mb-1">Drag & drop or click to upload</p>
+                    <p class="text-gray-400 text-sm">PDF, DOCX, TXT (max 10MB)</p>
+                </div>
+
+                <div id="file-selected" class="hidden">
+                    <svg class="w-10 h-10 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p class="text-gray-900 font-medium" id="file-name">filename.pdf</p>
+                    <p class="text-gray-400 text-sm">Click to change file</p>
+                </div>
+            </div>
+
+            <!-- Language Selection -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Output Language</label>
+                <select name="language" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-200 focus:border-gray-400 outline-none transition-all">
+                    {% for code, name in languages.items() %}
+                        <option value="{{ code }}" {% if code == 'en' %}selected{% endif %}>
+                            {{ name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Voice Selection -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Voice</label>
+                <select name="voice" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-200 focus:border-gray-400 outline-none transition-all">
+                    {% for voice_id, voice_info in voices.items() %}
+                        <option value="{{ voice_id }}" {% if voice_info.name == 'Sarah' %}selected{% endif %}>
+                            {{ voice_info.name }} - {{ voice_info.description }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <p class="text-gray-400 text-xs mt-1">Powered by ElevenLabs</p>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submit-btn" disabled
+                class="w-full py-3 px-4 bg-gray-900 text-white rounded-lg font-medium transition-all hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Generate Audiobook
+            </button>
+        </form>
+    </div>
+
+    <!-- Footer -->
+    <p class="mt-8 text-gray-400 text-sm opacity-0 animate-fade-in-up animation-delay-200">
+        Powered by Gemini AI + ElevenLabs
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const uploadPrompt = document.getElementById('upload-prompt');
+    const fileSelected = document.getElementById('file-selected');
+    const fileName = document.getElementById('file-name');
+    const submitBtn = document.getElementById('submit-btn');
+    const form = document.getElementById('upload-form');
+
+    // Click to upload
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // File selected
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            showFileSelected(e.target.files[0].name);
+        }
+    });
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            showFileSelected(files[0].name);
+        }
+    });
+
+    function showFileSelected(name) {
+        uploadPrompt.classList.add('hidden');
+        fileSelected.classList.remove('hidden');
+        fileName.textContent = name;
+        submitBtn.disabled = false;
+    }
+
+    // Form submit - show loading state
+    form.addEventListener('submit', () => {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-2 h-5 w-5 inline" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing...
+        `;
+    });
+</script>
+{% endblock %}

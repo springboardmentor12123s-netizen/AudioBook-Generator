@@ -1,162 +1,172 @@
+"""
+AudioBook Generator - Flask Application
+Simple web app to convert documents to audiobooks
+"""
+
 import os
-import streamlit as st
+import uuid
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash
+from werkzeug.utils import secure_filename
 
-from core.extract_text import extract_text_from_files
-from core.enrich_text import rewrite_for_audiobook
-from core.tts_engine import text_to_speech
-
-# ----- Page config -----
-st.set_page_config(
-    page_title="AI AudioBook Generator",
-    layout="wide",
+from config import (
+    GEMINI_API_KEY,
+    ELEVENLABS_API_KEY,
+    UPLOAD_FOLDER,
+    OUTPUT_FOLDER,
+    MAX_CONTENT_LENGTH,
+    allowed_file,
+    get_file_extension,
 )
+from modules.extractor import extract_text
+from modules.enricher import enrich_text, enrich_text_simple, get_available_languages
+from modules.synthesizer import text_to_speech, get_available_voices
 
-# ----- Global styling: white bg, dark text, large font -----
-st.markdown(
-    """
-    <style>
-    .main {
-        background-color: #ffffff;
-        color: #111111;
-    }
-    .block-container {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding-top: 1.5rem;
-    }
-    [data-testid="stSidebar"] {
-        background-color: #f2f4ff;
-        color: #111111;
-        border-right: 1px solid #e5e7eb;
-    }
-    [data-testid="stSidebar"] * {
-        color: #111111 !important;
-        font-size: 19px !important;
-    }
 
-    html, body, [class*="css"]  {
-        font-size: 22px !important;
-    }
-    textarea {
-        font-size: 20px !important;
-    }
+# Initialize Flask app
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
+app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
-    .section-card {
-        padding: 1rem 1.2rem;
-        margin-bottom: 1rem;
-        border-radius: 0.9rem;
-        background-color: #fafafa;
-        border: 1px solid #e5e7eb;
-    }
-    .section-title {
-        font-weight: 700;
-        font-size: 26px;
-        color: #111111;
-        margin-bottom: 0.4rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+# Ensure folders exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# ----- Sidebar -----
-with st.sidebar:
-    st.markdown("## Settings")
-    st.write("Control how the audiobook is generated.")
-    lang = st.selectbox("Language", ["en"], index=0)
-    slow = st.checkbox("Slow narration", value=False, help="Enable for slightly slower speech.")
-    st.markdown("---")
-    st.markdown("### Steps to use")
-    st.markdown("1. Upload documents\n\n2. Extract text\n\n3. Rewrite text\n\n4. Generate audio")
 
-# ----- Header -----
-st.markdown("<h1 style='color:#2563eb; text-align:center;'>AI AudioBook Generator</h1>", unsafe_allow_html=True)
-st.caption(
-    "Upload PDF, DOCX, or TXT files and turn them into an audiobook using AI-style rewriting and Text-to-Speech."
-)
+@app.route("/")
+def index():
+    """Home page - file upload form"""
+    voices = get_available_voices()
+    languages = get_available_languages()
+    return render_template("index.html", voices=voices, languages=languages)
 
-# ----- Session state -----
-for key in ["raw_text", "enriched_text", "audio_path"]:
-    if key not in st.session_state:
-        st.session_state[key] = ""
 
-# ----- 1. Upload & extract -----
-st.markdown('<div class="section-card">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">1. Upload documents</div>', unsafe_allow_html=True)
-uploaded_files = st.file_uploader(
-    "Supported formats: PDF, DOCX, TXT",
-    type=["pdf", "docx", "txt"],
-    accept_multiple_files=True,
-    help="You can upload one or more documents.",
-)
+@app.route("/upload", methods=["POST"])
+def upload():
+    """Handle file upload and process to audiobook"""
 
-if uploaded_files and st.button("Extract text", use_container_width=True):
-    with st.spinner("Extracting text from uploaded files..."):
-        extracted = extract_text_from_files(uploaded_files)
-    st.session_state.raw_text = extracted
-    if extracted:
-        st.success("Text extracted successfully.")
-    else:
-        st.warning("No readable text found in the uploaded files.")
-st.markdown("</div>", unsafe_allow_html=True)
+    # Check if file was uploaded
+    if "file" not in request.files:
+        flash("No file selected", "error")
+        return redirect(url_for("index"))
 
-# ----- 2. Show extracted text -----
-st.markdown('<div class="section-card">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">2. Extracted text</div>', unsafe_allow_html=True)
-st.text_area(
-    "Raw extracted text",
-    value=st.session_state.raw_text,
-    height=260,
-    placeholder="After extraction, the plain text from your documents will appear here.",
-)
-st.markdown("</div>", unsafe_allow_html=True)
+    file = request.files["file"]
 
-# ----- 3. Rewrite text -----
-if st.session_state.raw_text:
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">3. Prepare audiobook text</div>', unsafe_allow_html=True)
-    if st.button("Rewrite for audiobook (demo)", use_container_width=True):
-        with st.spinner("Preparing audiobook-style narration..."):
-            enriched = rewrite_for_audiobook(st.session_state.raw_text)
-        st.session_state.enriched_text = enriched
-        st.success("Audiobook text is ready.")
-    st.text_area(
-        "Audiobook-style text (demo)",
-        value=st.session_state.enriched_text,
-        height=260,
-        placeholder="The rewritten text for narration will appear here.",
+    if file.filename == "":
+        flash("No file selected", "error")
+        return redirect(url_for("index"))
+
+    if not allowed_file(file.filename):
+        flash("Invalid file type. Please upload PDF, DOCX, or TXT", "error")
+        return redirect(url_for("index"))
+
+    # Get voice and language selection
+    voice_id = request.form.get("voice", "EXAVITQu4vr4xnSDxMaL")
+    language_code = request.form.get("language", "en")
+    languages = get_available_languages()
+    language_name = languages.get(language_code, "English")
+
+    # Generate unique ID for this conversion
+    unique_id = str(uuid.uuid4())[:8]
+
+    # Save uploaded file
+    filename = secure_filename(file.filename)
+    file_ext = get_file_extension(filename)
+    upload_path = os.path.join(UPLOAD_FOLDER, f"{unique_id}_{filename}")
+    file.save(upload_path)
+
+    try:
+        # Step 1: Extract text
+        extract_result = extract_text(upload_path, file_ext)
+        if not extract_result["success"]:
+            flash(f"Text extraction failed: {extract_result['error']}", "error")
+            cleanup_file(upload_path)
+            return redirect(url_for("index"))
+
+        raw_text = extract_result["text"]
+
+        # Step 2: Enrich text with LLM (or simple cleanup if no API key)
+        if GEMINI_API_KEY:
+            enrich_result = enrich_text(raw_text, GEMINI_API_KEY, language_name)
+        else:
+            enrich_result = enrich_text_simple(raw_text)
+
+        if not enrich_result["success"]:
+            flash(f"Text enhancement failed: {enrich_result['error']}", "error")
+            cleanup_file(upload_path)
+            return redirect(url_for("index"))
+
+        enhanced_text = enrich_result["text"]
+
+        # Step 3: Convert to speech using ElevenLabs
+        output_filename = f"{unique_id}_audiobook.mp3"
+        output_path = os.path.join(OUTPUT_FOLDER, output_filename)
+
+        tts_result = text_to_speech(enhanced_text, output_path, ELEVENLABS_API_KEY, voice_id)
+        if not tts_result["success"]:
+            flash(f"Audio generation failed: {tts_result['error']}", "error")
+            cleanup_file(upload_path)
+            return redirect(url_for("index"))
+
+        # Cleanup uploaded file
+        cleanup_file(upload_path)
+
+        # Redirect to result page
+        return redirect(url_for("result", filename=output_filename))
+
+    except Exception as e:
+        flash(f"An error occurred: {str(e)}", "error")
+        cleanup_file(upload_path)
+        return redirect(url_for("index"))
+
+
+@app.route("/result/<filename>")
+def result(filename):
+    """Show result page with audio player and download"""
+    output_path = os.path.join(OUTPUT_FOLDER, filename)
+
+    if not os.path.exists(output_path):
+        flash("Audio file not found", "error")
+        return redirect(url_for("index"))
+
+    return render_template("result.html", filename=filename)
+
+
+@app.route("/download/<filename>")
+def download(filename):
+    """Download the generated audio file"""
+    output_path = os.path.join(OUTPUT_FOLDER, filename)
+
+    if not os.path.exists(output_path):
+        flash("Audio file not found", "error")
+        return redirect(url_for("index"))
+
+    return send_file(
+        output_path,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="audio/mpeg"
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
-# ----- 4. Generate audio -----
-if st.session_state.enriched_text:
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">4. Generate audio</div>', unsafe_allow_html=True)
-    if st.button("Generate audio with gTTS", use_container_width=True):
-        with st.spinner("Generating audio file..."):
-            outputs_dir = "outputs"
-            os.makedirs(outputs_dir, exist_ok=True)
-            out_path = os.path.join(outputs_dir, "audiobook_demo.mp3")
-            text_to_speech(
-                st.session_state.enriched_text,
-                out_path,
-                lang=lang,
-                slow=slow,
-            )
-            st.session_state.audio_path = out_path
-        st.success("Audio generated successfully.")
 
-    if st.session_state.audio_path and os.path.exists(st.session_state.audio_path):
-        with open(st.session_state.audio_path, "rb") as f:
-            audio_bytes = f.read()
-        st.audio(audio_bytes, format="audio/mp3")
-        st.download_button(
-            "Download audiobook",
-            data=audio_bytes,
-            file_name="audiobook_demo.mp3",
-            mime="audio/mp3",
-            use_container_width=True,
-        )
-    else:
-        st.info("Generate the audio to preview and download it here.")
-    st.markdown("</div>", unsafe_allow_html=True)
+@app.route("/audio/<filename>")
+def serve_audio(filename):
+    """Serve audio file for the player"""
+    output_path = os.path.join(OUTPUT_FOLDER, filename)
+
+    if not os.path.exists(output_path):
+        return "File not found", 404
+
+    return send_file(output_path, mimetype="audio/mpeg")
+
+
+def cleanup_file(filepath):
+    """Remove a file if it exists"""
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except Exception:
+        pass
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
