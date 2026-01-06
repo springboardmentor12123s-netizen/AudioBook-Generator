@@ -43,16 +43,12 @@ if not GEMINI_API_KEY:
 # Configure Gemini 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# FIX #1: Switched to 'gemini-pro' (Safer model name if Flash fails)
-# If you really want flash, try "models/gemini-1.5-flash-latest"
 try:
     model = genai.GenerativeModel("models/gemini-2.5-flash")
 except:
-    # Fallback if the specific flash model isn't found
     model = genai.GenerativeModel("gemini-3-pro-preview")
 
-# --- Helper Functions ---
-
+# Helper Functions
 def extract_text(file):
     """Extracts text from TXT, PDF, DOCX, and PPTX files."""
     try:
