@@ -56,8 +56,9 @@ def grammar_correction(text):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        st.error(f"Gemini API Error: {e}")
-        return "Error: Could not generate response."
+        # st.error(f"Gemini API Error: {e}")
+        # return "Error: Could not generate response."
+        return text
 
 def translate_text(text, target_language_code):
     prompt = f"""
