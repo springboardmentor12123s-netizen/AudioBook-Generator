@@ -46,7 +46,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 try:
     model = genai.GenerativeModel("models/gemini-2.5-flash")
 except:
-    model = genai.GenerativeModel("gemini-3-pro-preview")
+    model = genai.GenerativeModel("models/gemini-flash-latest")
 
 # Helper Functions
 def extract_text(file):
@@ -299,8 +299,8 @@ if uploaded_file:
                     acc_help = """
                     An estimate of how intelligible the audio is.
                     We convert the audio BACK to text to test it.
-                    a. 85\% - 100\%: Perfect pronunciation.
-                    b. 65\% - 85\%: Clear, but might have 'robot' accent quirks.
+                    a. 85% - 100%: Perfect pronunciation.
+                    b. 65% - 85%: Clear, but might have 'robot' accent quirks.
                     c. < 65%: Might be skipping words.
                     """
 
