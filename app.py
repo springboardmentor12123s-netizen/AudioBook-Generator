@@ -86,7 +86,7 @@ def grammar_correction(text):
         st.warning("Text truncated to 30000 chars for processing.")
         
     prompt = f"""
-    You are a writing assistant. Correct grammatical errors and improve readability.
+    You are a writing assistant. Correct grammatical errors and improve readability. Replace numbers with their corresponding words.
     Do not change the underlying meaning.
     Return ONLY the improved text.
     
